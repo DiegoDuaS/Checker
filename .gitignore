@@ -1,3 +1,6 @@
 # code editors files
 .idea
 .vscode
+
+# compilation generated files
+target
