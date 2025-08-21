@@ -1,5 +1,9 @@
 grammar Compiscript;
 
+@header {
+    package com.fmd;
+}
+
 // ------------------
 // Parser Rules
 // ------------------

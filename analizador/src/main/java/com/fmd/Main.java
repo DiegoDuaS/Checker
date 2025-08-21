@@ -7,7 +7,7 @@ import java.nio.file.*;
 public class Main {
     public static void main(String[] args) throws Exception {
         // 1. Leer archivo de entrada
-        String inputFile = args.length > 0 ? args[0] : "../program.cps";
+        String inputFile = args.length > 0 ? args[0] : "src\\main\\java\\com\\fmd\\program.cps";
         String code = Files.readString(Path.of(inputFile));
 
         // 2. Crear lexer
@@ -20,11 +20,11 @@ public class Main {
         // 4. Invocar la regla inicial de la gramática
         ParseTree tree = parser.program(); // cambia "program" por tu regla inicial
 
-        // 5. Imprimir árbol sintáctico
+        // 5. Imprimir árbol sintáctico REEMPLAZAR POR UNA MEJOR VISUALIZACION
         System.out.println(tree.toStringTree(parser));
 
         // 6. Análisis semántico
-        // SemanticAnalyzer analyzer = new SemanticAnalyzer();
-        // analyzer.visit(tree);
+        // SemanticVisitor visitor = new SemanticVisitor();
+        // visitor.visit(tree);
     }
 }
