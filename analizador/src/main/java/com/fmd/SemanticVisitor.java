@@ -4,13 +4,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
-    private VisitorVariables visitorVariables = new VisitorVariables();
-    private VisitorFunciones visitorFunciones = new VisitorFunciones();
+    private VariableVisitor visitorVariables = new VariableVisitor();
+    // private FunctionVisitor visitorFunciones = new FunctionVisitor();
 
     @Override
-    public Void visitPrograma(CompiscriptParser.ProgramaContext ctx) {
+    public Void visitProgram(CompiscriptParser.ProgramContext ctx) {
         visitorVariables.visit(ctx);
-        visitorFunciones.visit(ctx);
+        // visitorFunciones.visit(ctx);
         return null;
     }
 
