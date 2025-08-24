@@ -5,12 +5,50 @@ import java.util.Map;
 
 public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
-    // Tabla de símbolos: nombre de variable → tipo declarado
-    private final Map<String, String> tablaVariables = new HashMap<>();
+    // -----------------------
+    // Clase para manejar scopes
+    // -----------------------
+    public static class Entorno {
+        private final Map<String, String> variables = new HashMap<>();
+        private final Entorno padre;
 
-    // -----------------------------------------
-    // Constantes: inicialización obligatoria
-    // -----------------------------------------
+        public Entorno(Entorno padre) {
+            this.padre = padre;
+        }
+
+        public Entorno getPadre() {
+            return padre;
+        }
+
+        public boolean existeLocal(String nombre) {
+            return variables.containsKey(nombre);
+        }
+
+        public boolean existeGlobal(String nombre) {
+            if (variables.containsKey(nombre)) return true;
+            return padre != null && padre.existeGlobal(nombre);
+        }
+
+        public void agregar(String nombre, String tipo) {
+            variables.put(nombre, tipo);
+        }
+
+        public String obtener(String nombre) {
+            if (variables.containsKey(nombre)) return variables.get(nombre);
+            if (padre != null) return padre.obtener(nombre);
+            return null; // no declarado
+        }
+
+        public Map<String, String> getVariables() {
+            return variables;
+        }
+    }
+
+    private Entorno entornoActual = new Entorno(null);
+
+    // -----------------------
+    // Constantes
+    // -----------------------
     @Override
     public String visitConstantDeclaration(CompiscriptParser.ConstantDeclarationContext ctx) {
         String nombre = ctx.Identifier().getText();
@@ -20,46 +58,46 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             System.err.println("Error semántico: la constante '" + nombre + "' debe inicializarse.");
         }
 
-        if (tablaVariables.containsKey(nombre)) {
-            System.err.println("Error semántico: la constante '" + nombre + "' ya está declarada.");
+        if (entornoActual.existeLocal(nombre)) {
+            System.err.println("Error semántico: la constante '" + nombre + "' ya está declarada en este scope.");
         } else {
-            tablaVariables.put(nombre, tipo);
+            entornoActual.agregar(nombre, tipo);
         }
 
         return tipo;
     }
 
-    // -----------------------------------------
-    // Variables normales (let/var)
-    // -----------------------------------------
+    // -----------------------
+    // Variables normales
+    // -----------------------
     @Override
     public String visitVariableDeclaration(CompiscriptParser.VariableDeclarationContext ctx) {
         String nombre = ctx.Identifier().getText();
         String tipo = ctx.typeAnnotation() != null ? ctx.typeAnnotation().getText() : "desconocido";
 
-        if (tablaVariables.containsKey(nombre)) {
-            System.err.println("Error semántico: variable '" + nombre + "' ya declarada.");
+        if (entornoActual.existeLocal(nombre)) {
+            System.err.println("Error semántico: variable '" + nombre + "' ya declarada en este scope.");
         } else {
-            tablaVariables.put(nombre, tipo);
+            entornoActual.agregar(nombre, tipo);
         }
 
         return tipo;
     }
 
-    // -----------------------------------------
-    // Asignaciones: verificar tipos
-    // -----------------------------------------
+    // -----------------------
+    // Asignaciones
+    // -----------------------
     @Override
     public String visitAssignment(CompiscriptParser.AssignmentContext ctx) {
         String nombreVar = ctx.Identifier().getText();
 
-        if (!tablaVariables.containsKey(nombreVar)) {
+        if (!entornoActual.existeGlobal(nombreVar)) {
             System.err.println("Error semántico: variable '" + nombreVar + "' no declarada.");
             return "desconocido";
         }
 
-        String tipoDeclarado = tablaVariables.get(nombreVar);
-        String tipoExpr = visit(ctx.expression(0)); // delega al visitor correcto
+        String tipoDeclarado = entornoActual.obtener(nombreVar);
+        String tipoExpr = visit(ctx.expression(0));
 
         if (!tipoDeclarado.equals(tipoExpr)) {
             System.err.println("Error semántico: no se puede asignar valor de tipo '"
@@ -69,52 +107,47 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         return tipoExpr;
     }
 
-    // -----------------------------------------
-    // Identificadores → buscar en tabla
-    // -----------------------------------------
+    // -----------------------
+    // Literales e identificadores
+    // -----------------------
     @Override
     public String visitIdentifierExpr(CompiscriptParser.IdentifierExprContext ctx) {
         String nombre = ctx.Identifier().getText();
-        return tablaVariables.getOrDefault(nombre, "desconocido");
+        String tipo = entornoActual.obtener(nombre);
+        if (tipo == null) {
+            System.err.println("Error semántico: variable '" + nombre + "' no declarada.");
+            return "desconocido";
+        }
+        return tipo;
     }
 
-    // -----------------------------------------
-    // Literales → deducir tipo
-    // -----------------------------------------
     @Override
     public String visitLiteralExpr(CompiscriptParser.LiteralExprContext ctx) {
         if (ctx.Literal() != null) {
             String lit = ctx.Literal().getText();
-            if (lit.matches("[0-9]+"))
-                return "int";
-            if (lit.startsWith("\""))
-                return "string";
+            if (lit.matches("[0-9]+")) return "int";
+            if (lit.startsWith("\"")) return "string";
         }
         String texto = ctx.getText();
-        if (texto.equals("true") || texto.equals("false"))
-            return "boolean";
-        if (texto.equals("null"))
-            return "null";
+        if (texto.equals("true") || texto.equals("false")) return "boolean";
+        if (texto.equals("null")) return "null";
         return "desconocido";
     }
 
-    // -----------------------------------------
-    // Para expresiones complejas: delegar al visitor
-    // -----------------------------------------
-    @Override
-    public String visitExprNoAssign(CompiscriptParser.ExprNoAssignContext ctx) {
-        return visit(ctx.conditionalExpr());
+    // -----------------------
+    // Entradas y salidas de bloques
+    // -----------------------
+    public void entrarScope() {
+        entornoActual = new Entorno(entornoActual);
     }
 
-    @Override
-    public String visitAssignExpr(CompiscriptParser.AssignExprContext ctx) {
-        return visit(ctx.assignmentExpr()); // delega recursivamente
+    public void salirScope() {
+        if (entornoActual.getPadre() != null) {
+            entornoActual = entornoActual.getPadre();
+        }
     }
 
-    // -----------------------------------------
-    // Getter de tabla de variables
-    // -----------------------------------------
     public Map<String, String> getTablaVariables() {
-        return tablaVariables;
+        return entornoActual.getVariables();
     }
 }

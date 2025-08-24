@@ -1,8 +1,11 @@
 package com.fmd;
 
-import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.tree.*;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -24,7 +27,7 @@ public class Main {
         System.out.println(tree.toStringTree(parser));
 
         // 6. Análisis semántico
-        // SemanticVisitor visitor = new SemanticVisitor();
-        // visitor.visit(tree);
+        SemanticVisitor semanticVisitor = new SemanticVisitor();
+        semanticVisitor.visit(tree);
     }
 }
