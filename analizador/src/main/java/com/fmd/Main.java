@@ -20,14 +20,24 @@ public class Main {
         // 3. Crear parser
         CompiscriptParser parser = new CompiscriptParser(tokens);
 
-        // 4. Invocar la regla inicial de la gramática
-        ParseTree tree = parser.program(); // cambia "program" por tu regla inicial
+        // 4. Invocar la regla inicial
+        ParseTree tree = parser.program();
 
-        // 5. Imprimir árbol sintáctico REEMPLAZAR POR UNA MEJOR VISUALIZACION
+        // 5. Opcional: ver árbol sintáctico
         System.out.println(tree.toStringTree(parser));
 
         // 6. Análisis semántico
-        SemanticVisitor semanticVisitor = new SemanticVisitor();
-        semanticVisitor.visit(tree);
+        SemanticVisitor visitor = new SemanticVisitor();
+        visitor.visit(tree);
+
+        // 7. Mostrar errores
+        if (visitor.getErrores().isEmpty()) {
+            System.out.println("✅ Análisis semántico completado sin errores.");
+        } else {
+            System.out.println("❌ Se encontraron errores semánticos:");
+            for (SemanticError err : visitor.getErrores()) {
+                System.out.println(err); 
+            }
+        }
     }
 }
