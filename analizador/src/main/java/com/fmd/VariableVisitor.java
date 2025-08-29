@@ -10,62 +10,8 @@ import com.fmd.modules.Symbol;
 public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     private final SemanticVisitor semanticVisitor;
 
-    private Entorno entornoActual;
-    private final Entorno raiz;
-
-    public VariableVisitor(SemanticVisitor sv) {
-        this.semanticVisitor = sv;
-        this.entornoActual = new Entorno(null);
-        this.raiz = this.entornoActual; // root/global
-    }
-
-    public static class Entorno {
-        private final Map<String, Symbol> symbols = new HashMap<>();
-        private final Entorno padre;
-
-        public Entorno(Entorno padre) {
-            this.padre = padre;
-        }
-
-        public Entorno getPadre() {
-            return padre;
-        }
-
-        public boolean existeLocal(String nombre) {
-            return symbols.containsKey(nombre);
-        }
-
-        public boolean existeGlobal(String nombre) {
-            if (symbols.containsKey(nombre))
-                return true;
-            return padre != null && padre.existeGlobal(nombre);
-        }
-
-        public void agregar(Symbol sym) {
-            symbols.put(sym.getName(), sym);
-        }
-
-        public Symbol obtener(String nombre) {
-            if (symbols.containsKey(nombre))
-                return symbols.get(nombre);
-            if (padre != null)
-                return padre.obtener(nombre);
-            return null;
-        }
-
-        /** devuelve solo los símbolos del entorno actual (no incluye padres) */
-        public Map<String, Symbol> getSymbolsLocal() {
-            return Collections.unmodifiableMap(symbols);
-        }
-
-        /** devuelve un mapa con la vista combinada de root->...->this (root primero) */
-        public Map<String, Symbol> getAllSymbols() {
-            LinkedHashMap<String, Symbol> result = new LinkedHashMap<>();
-            if (padre != null)
-                result.putAll(padre.getAllSymbols());
-            result.putAll(this.symbols);
-            return result;
-        }
+    public VariableVisitor(SemanticVisitor semanticVisitor) {
+        this.semanticVisitor = semanticVisitor;
     }
 
     @Override
@@ -80,7 +26,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                     ctx.start.getCharPositionInLine());
         }
 
-        if (entornoActual.existeLocal(nombre)) {
+        if (semanticVisitor.getEntornoActual().existeLocal(nombre)) {
             semanticVisitor.agregarError(
                     "Constante '" + nombre + "' ya declarada en este scope",
                     ctx.start.getLine(),
@@ -96,7 +42,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
         Symbol sym = new Symbol(nombre, Symbol.Kind.CONSTANT, tipo, ctx, ctx.start.getLine(),
                 ctx.start.getCharPositionInLine(), false);
-        entornoActual.agregar(sym);
+        semanticVisitor.getEntornoActual().agregar(sym);
         return tipo;
     }
 
@@ -105,7 +51,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         String nombre = ctx.Identifier().getText();
         String tipo = ctx.typeAnnotation() != null ? ctx.typeAnnotation().getText() : "desconocido";
 
-        if (entornoActual.existeLocal(nombre)) {
+        if (semanticVisitor.getEntornoActual().existeLocal(nombre)) {
             semanticVisitor.agregarError(
                     "Variable '" + nombre + "' ya declarada en este scope",
                     ctx.start.getLine(),
@@ -122,14 +68,14 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
         Symbol sym = new Symbol(nombre, Symbol.Kind.VARIABLE, tipo, ctx, ctx.start.getLine(),
                 ctx.start.getCharPositionInLine(), true);
-        entornoActual.agregar(sym);
+        semanticVisitor.getEntornoActual().agregar(sym);
         return tipo;
     }
 
     @Override
     public String visitAssignment(CompiscriptParser.AssignmentContext ctx) {
         String nombreVar = ctx.Identifier().getText();
-        Symbol sym = entornoActual.obtener(nombreVar);
+        Symbol sym = semanticVisitor.getEntornoActual().obtener(nombreVar);
 
         if (sym == null) {
             semanticVisitor.agregarError("Variable '" + nombreVar + "' no declarada",
@@ -156,7 +102,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     @Override
     public String visitIdentifierExpr(CompiscriptParser.IdentifierExprContext ctx) {
         String nombre = ctx.Identifier().getText();
-        Symbol sym = entornoActual.obtener(nombre);
+        Symbol sym = semanticVisitor.getEntornoActual().obtener(nombre);
         if (sym == null) {
             semanticVisitor.agregarError("Variable '" + nombre + "' no declarada",
                     ctx.start.getLine(), ctx.start.getCharPositionInLine());
@@ -180,29 +126,5 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         if (texto.equals("null"))
             return "null";
         return "desconocido";
-    }
-
-    public void entrarScope() {
-        entornoActual = new Entorno(entornoActual);
-    }
-
-    public void salirScope() {
-        if (entornoActual.getPadre() != null) {
-            entornoActual = entornoActual.getPadre();
-        }
-    }
-
-    // Exportar tabla como Map<String, Symbol>
-    public Map<String, Symbol> getAllSymbols() {
-        return raiz.getAllSymbols();
-    }
-
-    // Compatibilidad: si quieres seguir devolviendo Map<String,String>
-    public Map<String, String> getTablaVariables() {
-        Map<String, String> res = new LinkedHashMap<>();
-        for (Map.Entry<String, Symbol> e : getAllSymbols().entrySet()) {
-            res.put(e.getKey(), e.getValue().getType());
-        }
-        return res;
     }
 }

@@ -1,6 +1,9 @@
 package com.fmd;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -8,27 +11,84 @@ import com.fmd.modules.SemanticError;
 import com.fmd.modules.Symbol;
 
 public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
-
     private final List<SemanticError> errores = new ArrayList<>();
+
+    private Entorno entornoActual;
+    private final Entorno raiz;
+
     private final VariableVisitor variableVisitor = new VariableVisitor(this);
+
+    public SemanticVisitor() {
+        this.entornoActual = new Entorno(null);
+        this.raiz = this.entornoActual; // root/global
+    }
+
+    public static class Entorno {
+        private final Map<String, Symbol> symbols = new HashMap<>();
+        private final Entorno padre;
+
+        public Entorno(Entorno padre) {
+            this.padre = padre;
+        }
+
+        public Entorno getPadre() {
+            return padre;
+        }
+
+        public boolean existeLocal(String nombre) {
+            return symbols.containsKey(nombre);
+        }
+
+        public boolean existeGlobal(String nombre) {
+            if (symbols.containsKey(nombre))
+                return true;
+            return padre != null && padre.existeGlobal(nombre);
+        }
+
+        public void agregar(Symbol sym) {
+            symbols.put(sym.getName(), sym);
+        }
+
+        public Symbol obtener(String nombre) {
+            if (symbols.containsKey(nombre))
+                return symbols.get(nombre);
+            if (padre != null)
+                return padre.obtener(nombre);
+            return null;
+        }
+
+        /** devuelve solo los símbolos del entorno actual (no incluye padres) */
+        public Map<String, Symbol> getSymbolsLocal() {
+            return Collections.unmodifiableMap(symbols);
+        }
+
+        /** devuelve un mapa con la vista combinada de root->...->this (root primero) */
+        public Map<String, Symbol> getAllSymbols() {
+            LinkedHashMap<String, Symbol> result = new LinkedHashMap<>();
+            if (padre != null)
+                result.putAll(padre.getAllSymbols());
+            result.putAll(this.symbols);
+            return result;
+        }
+    }
 
     @Override
     public Void visitProgram(CompiscriptParser.ProgramContext ctx) {
-        variableVisitor.entrarScope();
+        entrarScope();
         for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
             visit(stmt);
         }
-        variableVisitor.salirScope();
+        salirScope();
         return null;
     }
 
     @Override
     public Void visitBlock(CompiscriptParser.BlockContext ctx) {
-        variableVisitor.entrarScope();
+        entrarScope();
         for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
             visit(stmt);
         }
-        variableVisitor.salirScope();
+        salirScope();
         return null;
     }
 
@@ -83,15 +143,40 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return null;
     }
 
-    public Map<String, Symbol> getTablaSimbolos() {
-        return variableVisitor.getAllSymbols();
+    // Manejo tabla de simbolos
+    public void entrarScope() {
+        entornoActual = new Entorno(entornoActual);
     }
 
-    // Mantener compatibilidad si hay código que espera Map<String,String>
+    public void salirScope() {
+        if (entornoActual.getPadre() != null) {
+            entornoActual = entornoActual.getPadre();
+        }
+    }
+
+    public Entorno getEntornoActual() {
+        return entornoActual;
+    }
+
+    public Entorno getRaiz() {
+        return raiz;
+    }
+
+    // Exportar tabla como Map<String, Symbol>
+    public Map<String, Symbol> getAllSymbols() {
+        return raiz.getAllSymbols();
+    }
+
+    // Compatibilidad: si quieres seguir devolviendo Map<String,String>
     public Map<String, String> getTablaVariables() {
-        return variableVisitor.getTablaVariables();
+        Map<String, String> res = new LinkedHashMap<>();
+        for (Map.Entry<String, Symbol> e : getAllSymbols().entrySet()) {
+            res.put(e.getKey(), e.getValue().getType());
+        }
+        return res;
     }
 
+    // Manejo de errores
     public void agregarError(String mensaje, int linea, int columna) {
         errores.add(new SemanticError(mensaje, linea, columna));
     }
