@@ -7,6 +7,8 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import com.fmd.modules.SemanticError;
+
 public class Main {
     public static void main(String[] args) throws Exception {
         // 1. Leer archivo de entrada
@@ -32,11 +34,11 @@ public class Main {
 
         // 7. Mostrar errores
         if (visitor.getErrores().isEmpty()) {
-            System.out.println("✅ Análisis semántico completado sin errores.");
+            System.out.println("Análisis semántico completado sin errores.");
         } else {
-            System.out.println("❌ Se encontraron errores semánticos:");
+            System.out.println("Se encontraron errores semánticos:");
             for (SemanticError err : visitor.getErrores()) {
-                System.out.println(err); 
+                System.out.println(err);
             }
         }
     }

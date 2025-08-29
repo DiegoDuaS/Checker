@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import com.fmd.modules.SemanticError;
+import com.fmd.modules.Symbol;
+
 public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
 
     private final List<SemanticError> errores = new ArrayList<>();
@@ -35,10 +38,9 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
             String tipoCond = variableVisitor.visit(ctx.expression());
             if (!"boolean".equals(tipoCond)) {
                 agregarError(
-                    "Condición del if debe ser boolean, encontrada: " + tipoCond,
-                    ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine()
-                );
+                        "Condición del if debe ser boolean, encontrada: " + tipoCond,
+                        ctx.start.getLine(),
+                        ctx.start.getCharPositionInLine());
             }
         }
         visit(ctx.block(0));
@@ -54,10 +56,9 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
             String tipoCond = variableVisitor.visit(ctx.expression());
             if (!"boolean".equals(tipoCond)) {
                 agregarError(
-                    "Condición del while debe ser boolean, encontrada: " + tipoCond,
-                    ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine()
-                );
+                        "Condición del while debe ser boolean, encontrada: " + tipoCond,
+                        ctx.start.getLine(),
+                        ctx.start.getCharPositionInLine());
             }
         }
         visit(ctx.block());
@@ -82,6 +83,11 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return null;
     }
 
+    public Map<String, Symbol> getTablaSimbolos() {
+        return variableVisitor.getAllSymbols();
+    }
+
+    // Mantener compatibilidad si hay código que espera Map<String,String>
     public Map<String, String> getTablaVariables() {
         return variableVisitor.getTablaVariables();
     }

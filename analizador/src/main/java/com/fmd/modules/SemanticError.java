@@ -1,4 +1,4 @@
-package com.fmd;
+package com.fmd.modules;
 
 public class SemanticError {
     private final String mensaje;
