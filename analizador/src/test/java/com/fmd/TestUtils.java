@@ -2,6 +2,9 @@ package com.fmd;
 
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
+import com.fmd.CompiscriptBaseVisitor;
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptLexer;
 
 public class TestUtils {
 

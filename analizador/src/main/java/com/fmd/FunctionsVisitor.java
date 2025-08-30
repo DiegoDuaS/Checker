@@ -98,7 +98,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         String actualReturnType;
 
         if (ctx.expression() != null) {
-            actualReturnType = visit(ctx.expression()); // Obtener tipo de la expresión
+            actualReturnType = semanticVisitor.getVariableVisitor().visit(ctx.expression()); // Obtener tipo de la expresión
         } else {
             actualReturnType = "void";
         }
@@ -141,7 +141,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
 
         if (expectedArgs != actualArgs) {
             semanticVisitor.agregarError("Función '" + functionName + "' espera " +
-                    expectedArgs + " argumentos, pero recibe " + actualArgs, ctx.start.getLine(),
+                            expectedArgs + " argumentos, pero recibe " + actualArgs, ctx.start.getLine(),
                     ctx.start.getCharPositionInLine());
             return "ERROR";
         }
@@ -151,12 +151,12 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             List<Symbol> functionParams = function.getParams();
             List<CompiscriptParser.ExpressionContext> args = ctx.arguments().expression();
             for (int i = 0; i < args.size(); i++) {
-                String actualType = visit(args.get(i));
+                String actualType = semanticVisitor.getVariableVisitor().visit(args.get(i));
                 String expectedType = functionParams.get(i).getType();
 
                 if (!typesCompatible(actualType, expectedType)) {
                     semanticVisitor.agregarError("Argumento " + (i + 1) + " en función '" +
-                            functionName + "': esperado " + expectedType + ", encontrado " + actualType,
+                                    functionName + "': esperado " + expectedType + ", encontrado " + actualType,
                             ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 }
             }
