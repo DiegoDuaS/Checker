@@ -200,4 +200,51 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     public FunctionsVisitor getFunctionsVisitor() {
         return functionsVisitor;
     }
+
+    // Delegación de expresiones al VariableVisitor
+    @Override
+    public Void visitAdditiveExpr(CompiscriptParser.AdditiveExprContext ctx) {
+        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        return null;
+    }
+
+    @Override
+    public Void visitMultiplicativeExpr(CompiscriptParser.MultiplicativeExprContext ctx) {
+        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        return null;
+    }
+
+    @Override
+    public Void visitUnaryExpr(CompiscriptParser.UnaryExprContext ctx) {
+        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        return null;
+    }
+
+    @Override
+    public Void visitLiteralExpr(CompiscriptParser.LiteralExprContext ctx) {
+        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        return null;
+    }
+
+    @Override
+    public Void visitIdentifierExpr(CompiscriptParser.IdentifierExprContext ctx) {
+        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        return null;
+    }
+
+    @Override
+    public Void visitExpressionStatement(CompiscriptParser.ExpressionStatementContext ctx) {
+        if (ctx.expression() != null) {
+            variableVisitor.visit(ctx.expression()); // Visitar la expresión
+        }
+        return null;
+    }
+
+    @Override
+    public Void visitPrintStatement(CompiscriptParser.PrintStatementContext ctx) {
+        if (ctx.expression() != null) {
+            variableVisitor.visit(ctx.expression()); // Visitar la expresión del print
+        }
+        return null;
+    }
 }
