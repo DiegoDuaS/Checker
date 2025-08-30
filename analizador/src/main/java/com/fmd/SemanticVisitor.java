@@ -17,6 +17,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     private final Entorno raiz;
 
     private final VariableVisitor variableVisitor = new VariableVisitor(this);
+    private final FunctionsVisitor functionsVisitor = new FunctionsVisitor(this);
 
     public SemanticVisitor() {
         this.entornoActual = new Entorno(null);
@@ -82,6 +83,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return null;
     }
 
+    // General Statements
     @Override
     public Void visitBlock(CompiscriptParser.BlockContext ctx) {
         entrarScope();
@@ -125,6 +127,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return null;
     }
 
+    // VARIABLES
     @Override
     public Void visitVariableDeclaration(CompiscriptParser.VariableDeclarationContext ctx) {
         variableVisitor.visitVariableDeclaration(ctx);
@@ -140,6 +143,19 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitAssignment(CompiscriptParser.AssignmentContext ctx) {
         variableVisitor.visitAssignment(ctx);
+        return null;
+    }
+
+    // FUNCIONES
+    @Override
+    public Void visitFunctionDeclaration(CompiscriptParser.FunctionDeclarationContext ctx) {
+        functionsVisitor.visitFunctionDeclaration(ctx);
+        return null;
+    }
+
+    @Override
+    public Void visitReturnStatement(CompiscriptParser.ReturnStatementContext ctx) {
+        functionsVisitor.visitReturnStatement(ctx);
         return null;
     }
 
@@ -167,15 +183,6 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return raiz.getAllSymbols();
     }
 
-    // Compatibilidad: si quieres seguir devolviendo Map<String,String>
-    public Map<String, String> getTablaVariables() {
-        Map<String, String> res = new LinkedHashMap<>();
-        for (Map.Entry<String, Symbol> e : getAllSymbols().entrySet()) {
-            res.put(e.getKey(), e.getValue().getType());
-        }
-        return res;
-    }
-
     // Manejo de errores
     public void agregarError(String mensaje, int linea, int columna) {
         errores.add(new SemanticError(mensaje, linea, columna));
@@ -183,5 +190,14 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
 
     public List<SemanticError> getErrores() {
         return errores;
+    }
+
+    // visitors
+    public VariableVisitor getVariableVisitor() {
+        return variableVisitor;
+    }
+
+    public FunctionsVisitor getFunctionsVisitor() {
+        return functionsVisitor;
     }
 }

@@ -3,6 +3,7 @@ package com.fmd.modules;
 import org.antlr.v4.runtime.ParserRuleContext;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class Symbol {
     public enum Kind {
@@ -15,8 +16,11 @@ public class Symbol {
     private final ParserRuleContext declNode;
     private final int line;
     private final int column;
-    private final boolean mutable;
-    private final List<Symbol> params = new ArrayList<>(); // para funciones
+    private List<Symbol> params = new ArrayList<>(); // para funciones
+    private boolean mutable; // para variables/constantes
+    private boolean nested;
+    private String EnclosingFunctionName;
+    private Set<String> CapturedVariables;
 
     public Symbol(String name, Kind kind, String type, ParserRuleContext declNode, int line, int column,
             boolean mutable) {
@@ -64,6 +68,38 @@ public class Symbol {
 
     public List<Symbol> getParams() {
         return params;
+    }
+
+    public int getParameterCount() {
+        return params.size();
+    }
+
+    public void addParameter(Symbol newParam) {
+        params.add(newParam);
+    }
+
+    public String getEnclosingFunctionName() {
+        return EnclosingFunctionName;
+    }
+
+    public void setEnclosingFunctionName(String enclosingFunctionName) {
+        EnclosingFunctionName = enclosingFunctionName;
+    }
+
+    public boolean isNested() {
+        return nested;
+    }
+
+    public void setNested(boolean nested) {
+        this.nested = nested;
+    }
+
+    public Set<String> getCapturedVariables() {
+        return CapturedVariables;
+    }
+
+    public void setCapturedVariables(Set<String> capturedVariables) {
+        CapturedVariables = capturedVariables;
     }
 
     @Override

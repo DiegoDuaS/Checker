@@ -1,10 +1,5 @@
 package com.fmd;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 import com.fmd.modules.Symbol;
 
 public class VariableVisitor extends CompiscriptBaseVisitor<String> {
@@ -17,7 +12,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     @Override
     public String visitConstantDeclaration(CompiscriptParser.ConstantDeclarationContext ctx) {
         String nombre = ctx.Identifier().getText();
-        String tipo = ctx.typeAnnotation() != null ? ctx.typeAnnotation().getText() : "desconocido";
+        String tipo = ctx.typeAnnotation() != null ? ctx.typeAnnotation().type().getText() : "desconocido";
 
         if (ctx.expression() == null) {
             semanticVisitor.agregarError(
@@ -49,7 +44,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     @Override
     public String visitVariableDeclaration(CompiscriptParser.VariableDeclarationContext ctx) {
         String nombre = ctx.Identifier().getText();
-        String tipo = ctx.typeAnnotation() != null ? ctx.typeAnnotation().getText() : "desconocido";
+        String tipo = ctx.typeAnnotation() != null ? ctx.typeAnnotation().type().getText() : null;
 
         if (semanticVisitor.getEntornoActual().existeLocal(nombre)) {
             semanticVisitor.agregarError(
@@ -60,8 +55,9 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         }
 
         // inferir tipo desde initializer si no hay anotación
-        if (tipo == null && ctx.initializer() != null)
+        if (tipo == null && ctx.initializer() != null) {
             tipo = visit(ctx.initializer().expression());
+        }
 
         if (tipo == null)
             tipo = "desconocido";
@@ -116,7 +112,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         if (ctx.Literal() != null) {
             String lit = ctx.Literal().getText();
             if (lit.matches("[0-9]+"))
-                return "int";
+                return "integer";
             if (lit.startsWith("\""))
                 return "string";
         }
@@ -126,5 +122,16 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         if (texto.equals("null"))
             return "null";
         return "desconocido";
+    }
+
+    @Override
+    public String visitLeftHandSide(CompiscriptParser.LeftHandSideContext ctx) {
+        // Si tiene sufixOp que es CallExpr
+        for (CompiscriptParser.SuffixOpContext suffixOp : ctx.suffixOp()) {
+            if (suffixOp instanceof CompiscriptParser.CallExprContext) {
+                return semanticVisitor.getFunctionsVisitor().visitCallExpr((CompiscriptParser.CallExprContext) suffixOp);
+            }
+        }
+        return visitChildren(ctx);
     }
 }
