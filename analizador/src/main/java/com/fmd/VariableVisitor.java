@@ -127,4 +127,15 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             return "null";
         return "desconocido";
     }
+
+    @Override
+    public String visitLeftHandSide(CompiscriptParser.LeftHandSideContext ctx) {
+        // Si tiene sufixOp que es CallExpr
+        for (CompiscriptParser.SuffixOpContext suffixOp : ctx.suffixOp()) {
+            if (suffixOp instanceof CompiscriptParser.CallExprContext) {
+                semanticVisitor.getFunctionsVisitor().visitCallExpr((CompiscriptParser.CallExprContext) suffixOp);
+            }
+        }
+        return visitChildren(ctx);
+    }
 }
