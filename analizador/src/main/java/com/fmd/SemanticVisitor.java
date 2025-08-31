@@ -76,11 +76,9 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
 
     @Override
     public Void visitProgram(CompiscriptParser.ProgramContext ctx) {
-        entrarScope();
         for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
             visit(stmt);
         }
-        salirScope();
         return null;
     }
 

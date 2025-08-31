@@ -3,6 +3,7 @@ package com.fmd;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import com.fmd.modules.Symbol;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -40,6 +41,13 @@ public class Main {
             for (SemanticError err : visitor.getErrores()) {
                 System.out.println(err);
             }
+        }
+
+        // 8. Mostrar tabla de simbolos
+        System.out.println("\n Esta es la tabla de símbolos:");
+        for (String sym : visitor.getAllSymbols().keySet()) {
+            Symbol info = visitor.getAllSymbols().get(sym);
+            System.out.println(sym + ": " + info.getType() );
         }
     }
 }

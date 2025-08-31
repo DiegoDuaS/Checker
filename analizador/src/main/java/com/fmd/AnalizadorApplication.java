@@ -1,5 +1,6 @@
 package com.fmd;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fmd.modules.Symbol;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -46,7 +47,17 @@ class AnalizadorController {
 
         // 4. Guardar errores y símbolos
         List<SemanticError> errores = visitor.getErrores();
-        List<Symbol> simbolos = new ArrayList<>(visitor.getAllSymbols().values());
+        List<Map<String, Object>> simbolos = visitor.getAllSymbols().values().stream()
+                .map(sym -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("name", sym.getName());
+                    map.put("type", sym.getType());
+                    map.put("kind", sym.getKind());
+                    map.put("line", sym.getLine());
+                    map.put("column", sym.getColumn());
+                    return map;
+                })
+                .toList();
 
         // 5. Ejecutar script de Python para generar imagen del árbol
         String treeString = tree.toStringTree(parser);
