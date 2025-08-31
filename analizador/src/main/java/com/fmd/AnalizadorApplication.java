@@ -1,0 +1,94 @@
+package com.fmd;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.*;
+import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.tree.ParseTree;
+
+import com.fmd.CompiscriptLexer;
+import com.fmd.CompiscriptParser;
+import com.fmd.SemanticVisitor;
+import com.fmd.modules.SemanticError;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@SpringBootApplication
+public class AnalizadorApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(AnalizadorApplication.class, args);
+    }
+}
+
+@RestController
+@RequestMapping("/compilar")
+class AnalizadorController {
+
+    @PostMapping
+    public Map<String, Object> analizar(@RequestBody Map<String, String> body) throws Exception {
+        String code = body.get("codigo");
+        Map<String, Object> response = new HashMap<>();
+
+        // 1. Crear lexer y parser
+        CompiscriptLexer lexer = new CompiscriptLexer(CharStreams.fromString(code));
+        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        CompiscriptParser parser = new CompiscriptParser(tokens);
+
+        // 2. Parsear
+        ParseTree tree = parser.program();
+
+        // 3. Semántico
+        SemanticVisitor visitor = new SemanticVisitor();
+        visitor.visit(tree);
+
+        // 4. Guardar errores y símbolos
+        List<String> errores = visitor.getErrores().stream()
+                .map(SemanticError::toString)
+                .collect(Collectors.toList());
+
+        List<String> simbolos = visitor.getAllSymbols()
+                .values() // <-- convierte el Map en una Collection de valores
+                .stream()
+                .map(Object::toString)
+                .toList();
+
+        // 5. Ejecutar script de Python para generar imagen del árbol
+        String treeString = tree.toStringTree(parser);
+        String base64Img = generarImagen(treeString);
+
+        response.put("errors", errores);
+        response.put("symbols", simbolos);
+        response.put("astImage", base64Img);
+
+        return response;
+    }
+
+    public static String generarImagen(String treeString) {
+        try {
+            // Ejecuta un script Python que recibe el árbol y devuelve Base64
+            ProcessBuilder pb = new ProcessBuilder("python", "additions\\AstTreeGenerator.py");
+            Process p = pb.start();
+
+            // Mandar el árbol al script
+            p.getOutputStream().write(treeString.getBytes());
+            p.getOutputStream().close();
+
+            // Recibir errores
+            BufferedReader errorReader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+            String line;
+            while ((line = errorReader.readLine()) != null) {
+                System.err.println("[PYTHON ERROR] " + line);
+            }
+
+            // Recibir respuesta Base64
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            return reader.readLine();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
