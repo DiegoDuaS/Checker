@@ -9,15 +9,19 @@ import java.util.Map;
 
 import com.fmd.modules.SemanticError;
 import com.fmd.modules.Symbol;
+import org.antlr.v4.runtime.tree.ParseTree;
 
 public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     private final List<SemanticError> errores = new ArrayList<>();
 
     private Entorno entornoActual;
     private final Entorno raiz;
+    private Symbol lastSymbol;
+    private Symbol currentClass;
 
     private final VariableVisitor variableVisitor = new VariableVisitor(this);
     private final FunctionsVisitor functionsVisitor = new FunctionsVisitor(this);
+    private final ClassesListener classesListener = new ClassesListener(this);
 
     public SemanticVisitor() {
         this.entornoActual = new Entorno(null);
@@ -154,6 +158,27 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     }
 
     @Override
+    public Void visitClassDeclaration(CompiscriptParser.ClassDeclarationContext ctx) {
+        classesListener.enterClassDeclaration(ctx);
+
+        for (CompiscriptParser.ClassMemberContext memberCtx : ctx.classMember()) {
+            if (memberCtx.functionDeclaration() != null) {
+                classesListener.enterFunctionDeclaration(memberCtx.functionDeclaration());
+            } else if (memberCtx.variableDeclaration() != null) {
+                classesListener.enterVariableDeclaration(memberCtx.variableDeclaration());
+            } else if (memberCtx.constantDeclaration() != null) {
+                classesListener.enterConstantDeclaration(memberCtx.constantDeclaration());
+            }
+        }
+
+
+        classesListener.exitClassDeclaration(ctx);
+        return null;
+    }
+
+
+
+    @Override
     public Void visitReturnStatement(CompiscriptParser.ReturnStatementContext ctx) {
         functionsVisitor.visitReturnStatement(ctx);
         return null;
@@ -247,4 +272,28 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         }
         return null;
     }
+
+    public void setLastSymbol(Symbol sym) {
+        this.lastSymbol = sym;
+    }
+
+    public Symbol getLastSymbol() {
+        return this.lastSymbol;
+    }
+
+    public Symbol getCurrentClass() {
+        return currentClass;
+    }
+
+    public void setCurrentClass(Symbol cls) {
+        this.currentClass = cls;
+    }
+
+    public String getExpressionType(CompiscriptParser.ExpressionContext ctx) {
+        if (ctx == null) return "desconocido";
+
+        // Aquí puedes delegar al VariableVisitor y que retorne String
+        return variableVisitor.visit(ctx);
+    }
+
 }

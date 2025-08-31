@@ -6,8 +6,8 @@ let numbers: integer[] = [1, 2, 3, 4, 5];
 let matrix: integer[][] = [[1, 2], [3, 4]];
 
 // Simple closure-style function (no nested type signatures)
-function makeAdder(x: integer): integer {
-  return x + 1;
+function makeAdder(x: integer, y: integer): integer {
+  return x + y;
 }
 
 let addFive: integer = (makeAdder(5));
@@ -64,6 +64,8 @@ try {
 // Class definition and usage
 class Animal {
   let name: string;
+  let casa: string;
+  let casa: string;
 
   function constructor(name: string) {
     this.name = name;
@@ -82,6 +84,12 @@ class Dog : Animal {
 
 let dog: Dog = new Dog("Rex");
 print(dog.speak());
+print(dog.sit());
+
+print(casa);
+
+let amigo: Cat = new Cat("Michi");
+
 
 // Object property access and array indexing
 let first: integer = numbers[0];

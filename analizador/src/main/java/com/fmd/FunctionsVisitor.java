@@ -118,51 +118,77 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
     // Validación de argumentos en llamadas a funciones
     @Override
     public String visitCallExpr(CompiscriptParser.CallExprContext ctx) {
-        // Obtener el nombre de la función del contexto padre
-        String functionName = getFunctionNameFromContext(ctx);
-        Symbol function = semanticVisitor.getEntornoActual().obtener(functionName);
+        // Obtener base y método
+        String[] parts = getFunctionParts(ctx);
+        String baseName = parts[0];
+        String methodName = parts[1];
 
-        if (function == null) {
-            semanticVisitor.agregarError("Función '" + functionName + "' no declarada", ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine());
+        // Buscar base en el entorno
+        Symbol baseSym = semanticVisitor.getEntornoActual().obtener(baseName);
+        if (baseSym == null) {
+            semanticVisitor.agregarError("Función '" + baseName + "' no está declarada",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
-        // Validar que sea realmente una función
-        if (function.getKind() != Symbol.Kind.FUNCTION) {
-            semanticVisitor.agregarError("'" + functionName + "' no es una función", ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine());
-            return "ERROR";
-        }
-
-        // Validar número de argumentos
-        int expectedArgs = function.getParameterCount();
-        int actualArgs = ctx.arguments() != null ? ctx.arguments().expression().size() : 0;
-
-        if (expectedArgs != actualArgs) {
-            semanticVisitor.agregarError("Función '" + functionName + "' espera " +
-                            expectedArgs + " argumentos, pero recibe " + actualArgs, ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine());
-            return "ERROR";
-        }
-
-        // Validar tipos de argumentos
-        if (ctx.arguments() != null) {
-            List<Symbol> functionParams = function.getParams();
-            List<CompiscriptParser.ExpressionContext> args = ctx.arguments().expression();
-            for (int i = 0; i < args.size(); i++) {
-                String actualType = semanticVisitor.getVariableVisitor().visit(args.get(i));
-                String expectedType = functionParams.get(i).getType();
-
-                if (!typesCompatible(actualType, expectedType)) {
-                    semanticVisitor.agregarError("Argumento " + (i + 1) + " en función '" +
-                                    functionName + "': esperado " + expectedType + ", encontrado " + actualType,
-                            ctx.start.getLine(), ctx.start.getCharPositionInLine());
-                }
+        // Si es un método de clase
+        if (methodName != null) {
+            if (baseSym.getKind() != Symbol.Kind.VARIABLE) {
+                semanticVisitor.agregarError("'" + baseName + "' no es variable para acceder a método",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                return "ERROR";
             }
+
+            String classType = baseSym.getType();
+            Symbol classSym = semanticVisitor.getEntornoActual().obtener(classType);
+
+            if (classSym == null || classSym.getKind() != Symbol.Kind.CLASS) {
+                semanticVisitor.agregarError("Clase '" + classType + "' no existe",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                return "ERROR";
+            }
+
+            // Buscar método
+            Symbol methodSym = classSym.getMembers().values().stream()
+                    .filter(m -> m.getName().equals(methodName) && m.getKind() == Symbol.Kind.FUNCTION)
+                    .findFirst()
+                    .orElse(null);
+
+            if (methodSym == null) {
+                semanticVisitor.agregarError("Método '" + methodName + "' no existe en la clase '" + classType + "'",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                return "ERROR";
+            }
+
+            // Validar argumentos
+            int expectedArgs = methodSym.getParameterCount();
+            int actualArgs = ctx.arguments() != null ? ctx.arguments().expression().size() : 0;
+            if (expectedArgs != actualArgs) {
+                semanticVisitor.agregarError("Método '" + methodName + "' espera " + expectedArgs +
+                                " argumentos, pero recibe " + actualArgs,
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                return "ERROR";
+            }
+
+            return methodSym.getType();
         }
 
-        return function.getType();
+        // Caso función global
+        if (baseSym.getKind() == Symbol.Kind.FUNCTION) {
+            int expectedArgs = baseSym.getParameterCount();
+            int actualArgs = ctx.arguments() != null ? ctx.arguments().expression().size() : 0;
+            if (expectedArgs != actualArgs) {
+                semanticVisitor.agregarError("Función '" + baseSym.getName() + "' espera " + expectedArgs +
+                                " argumentos, pero recibe " + actualArgs,
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                return "ERROR";
+            }
+            return baseSym.getType();
+        }
+
+        semanticVisitor.agregarError("'" + baseName + "' no es función ni método de clase",
+                ctx.start.getLine(), ctx.start.getCharPositionInLine());
+        return "ERROR";
     }
 
     // Método auxiliar para compatibilidad de tipos
@@ -170,29 +196,39 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         if (actualType == null) {
             actualType = "void";
         }
-
-        if (actualType.equals(expectedType))
-            return true;
-        if ("ERROR".equals(actualType))
-            return true; // No reportar errores cascada
-
-        return false;
+        return actualType.equals(expectedType) || "ERROR".equals(actualType);
     }
 
+
     // Método auxiliar para obtener el nombre de la función
-    private String getFunctionNameFromContext(CompiscriptParser.CallExprContext ctx) {
-        // Buscar en el contexto padre para encontrar el identificador
+    private String[] getFunctionParts(CompiscriptParser.CallExprContext ctx) {
         ParseTree parent = ctx.getParent();
         while (parent != null) {
             if (parent instanceof CompiscriptParser.LeftHandSideContext) {
                 CompiscriptParser.LeftHandSideContext lhs = (CompiscriptParser.LeftHandSideContext) parent;
+
                 if (lhs.primaryAtom() instanceof CompiscriptParser.IdentifierExprContext) {
-                    return ((CompiscriptParser.IdentifierExprContext) lhs.primaryAtom()).Identifier().getText();
+                    String baseName = ((CompiscriptParser.IdentifierExprContext) lhs.primaryAtom()).Identifier().getText();
+                    String methodName = null;
+
+                    if (lhs.suffixOp() != null) {
+                        for (CompiscriptParser.SuffixOpContext suffix : lhs.suffixOp()) {
+                            if (suffix instanceof CompiscriptParser.PropertyAccessExprContext) {
+                                CompiscriptParser.PropertyAccessExprContext prop = (CompiscriptParser.PropertyAccessExprContext) suffix;
+                                if (prop.Identifier() != null) {
+                                    methodName = prop.Identifier().getText();
+                                    break; // primer PropertyAccess encontrado
+                                }
+                            }
+                        }
+                    }
+
+                    return new String[]{baseName, methodName};
                 }
             }
             parent = parent.getParent();
         }
-        return "unknown";
+        return new String[]{"unknown", null};
     }
 
     // Método auxiliar para obtener tipo desde contexto
