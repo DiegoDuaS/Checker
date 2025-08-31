@@ -30,7 +30,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         }
 
         if (ctx.expression() != null) {
-            String tipoExpresion = visit(ctx.expression());
+            String tipoExpresion = semanticVisitor.getLogicalVisitor().visit(ctx.expression());
 
             // Inferir tipo si no hay anotación
             if (tipo == null || "desconocido".equals(tipo)) {
@@ -71,7 +71,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         }
 
         if (ctx.initializer() != null && ctx.initializer().expression() != null) {
-            String tipoInicializador = visit(ctx.initializer().expression());
+            String tipoInicializador = semanticVisitor.getLogicalVisitor().visit(ctx.initializer().expression());
 
             // Inferir tipo si no hay anotación
             if (tipo == null) {
@@ -114,7 +114,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             return sym.getType();
         }
 
-        String tipoExpr = visit(ctx.expression(0));
+        String tipoExpr = semanticVisitor.getLogicalVisitor().visit(ctx.expression(0));
         // Chequeo simple de igualdad de cadenas de tipo; aquí podrías añadir coerciones
         if (!sym.getType().equals(tipoExpr) && !"desconocido".equals(tipoExpr)) {
             semanticVisitor.agregarError(
@@ -136,6 +136,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         }
         return sym.getType();
     }
+
     /**
      * Maneja operaciones aditivas: + y -
      * Valida que ambos operandos sean integer
@@ -309,34 +310,16 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         }
         return visitChildren(ctx);
     }
+
     // Métodos para manejar la jerarquía de expresiones
     @Override
     public String visitExprNoAssign(CompiscriptParser.ExprNoAssignContext ctx) {
-        return visit(ctx.conditionalExpr());
+        return semanticVisitor.getLogicalVisitor().visit(ctx.conditionalExpr());
     }
 
     @Override
     public String visitTernaryExpr(CompiscriptParser.TernaryExprContext ctx) {
-        return visit(ctx.logicalOrExpr()); // Procesar la expresión principal
-    }
-    @Override
-    public String visitLogicalOrExpr(CompiscriptParser.LogicalOrExprContext ctx) {
-        return visit(ctx.logicalAndExpr(0));
-    }
-
-    @Override
-    public String visitLogicalAndExpr(CompiscriptParser.LogicalAndExprContext ctx) {
-        return visit(ctx.equalityExpr(0));
-    }
-
-    @Override
-    public String visitEqualityExpr(CompiscriptParser.EqualityExprContext ctx) {
-        return visit(ctx.relationalExpr(0));
-    }
-
-    @Override
-    public String visitRelationalExpr(CompiscriptParser.RelationalExprContext ctx) {
-        return visit(ctx.additiveExpr(0));
+        return semanticVisitor.getLogicalVisitor().visit(ctx.logicalOrExpr());
     }
 
     @Override
@@ -348,7 +331,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             return visit(ctx.leftHandSide());
         }
         if (ctx.expression() != null) {
-            return visit(ctx.expression());
+            return semanticVisitor.getLogicalVisitor().visit(ctx.expression());
         }
         return "desconocido";
     }
