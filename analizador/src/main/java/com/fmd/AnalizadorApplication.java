@@ -1,18 +1,18 @@
 package com.fmd;
 
+import com.fmd.modules.Symbol;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.*;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.ParseTree;
 
-import com.fmd.CompiscriptLexer;
-import com.fmd.CompiscriptParser;
-import com.fmd.SemanticVisitor;
 import com.fmd.modules.SemanticError;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -45,15 +45,8 @@ class AnalizadorController {
         visitor.visit(tree);
 
         // 4. Guardar errores y símbolos
-        List<String> errores = visitor.getErrores().stream()
-                .map(SemanticError::toString)
-                .collect(Collectors.toList());
-
-        List<String> simbolos = visitor.getAllSymbols()
-                .values() // <-- convierte el Map en una Collection de valores
-                .stream()
-                .map(Object::toString)
-                .toList();
+        List<SemanticError> errores = visitor.getErrores();
+        List<Symbol> simbolos = new ArrayList<>(visitor.getAllSymbols().values());
 
         // 5. Ejecutar script de Python para generar imagen del árbol
         String treeString = tree.toStringTree(parser);
@@ -83,9 +76,12 @@ class AnalizadorController {
                 System.err.println("[PYTHON ERROR] " + line);
             }
 
-            // Recibir respuesta Base64
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            return reader.readLine();
+            // Esperar a que termine
+            p.waitFor();
+
+            // Leer el archivo generado
+            byte[] bytes = Files.readAllBytes(Paths.get("ast_tree.png"));
+            return Base64.getEncoder().encodeToString(bytes);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
