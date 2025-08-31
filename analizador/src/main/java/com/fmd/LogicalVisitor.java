@@ -101,82 +101,15 @@ public class LogicalVisitor extends CompiscriptBaseVisitor<String> {
         return tipoIzq;
     }
 
-    /**
-     * Maneja operaciones de igualdad (==, !=)
-     * Valida que ambos operandos sean del mismo tipo
-     */
+    // Delegación a ComparisonVisitor para operaciones de comparación
     @Override
     public String visitEqualityExpr(CompiscriptParser.EqualityExprContext ctx) {
-        // Obtener el primer operando (siempre existe)
-        String tipoIzq = visit(ctx.relationalExpr(0));
-
-        // Si solo hay un operando, retornamos su tipo (no hay operación)
-        if (ctx.relationalExpr().size() == 1) {
-            return tipoIzq;
-        }
-
-        // Procesar todas las operaciones de igualdad en cadena
-        for (int i = 1; i < ctx.relationalExpr().size(); i++) {
-            String tipoDer = visit(ctx.relationalExpr(i));
-            String operador = ctx.getChild(2 * i - 1).getText(); // ==, !=
-
-            // Validar que ambos operandos sean del mismo tipo
-            if (!tipoIzq.equals(tipoDer) && !"desconocido".equals(tipoIzq) && !"desconocido".equals(tipoDer)) {
-                semanticVisitor.agregarError(
-                        "No se pueden comparar tipos diferentes: '" + tipoIzq + "' " + operador + " '" + tipoDer + "'",
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
-            }
-
-            // Las operaciones de igualdad siempre retornan boolean
-            tipoIzq = "boolean";
-        }
-
-        return tipoIzq;
+        return semanticVisitor.getComparisonVisitor().visitEqualityExpr(ctx);
     }
 
-    /**
-     * Maneja operaciones relacionales (<, >, <=, >=)
-     * Valida que ambos operandos sean integer
-     */
     @Override
     public String visitRelationalExpr(CompiscriptParser.RelationalExprContext ctx) {
-        // Obtener el primer operando (siempre existe)
-        String tipoIzq = visit(ctx.additiveExpr(0));
-
-        // Si solo hay un operando, retornamos su tipo (no hay operación)
-        if (ctx.additiveExpr().size() == 1) {
-            return tipoIzq;
-        }
-
-        // Procesar todas las operaciones relacionales en cadena
-        for (int i = 1; i < ctx.additiveExpr().size(); i++) {
-            String tipoDer = visit(ctx.additiveExpr(i));
-            String operador = ctx.getChild(2 * i - 1).getText(); // <, >, <=, >=
-
-            // Validar que ambos operandos sean integer
-            if (!"integer".equals(tipoIzq)) {
-                semanticVisitor.agregarError(
-                        "Operando izquierdo de '" + operador + "' debe ser integer, encontrado: " + tipoIzq,
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
-            }
-
-            if (!"integer".equals(tipoDer)) {
-                semanticVisitor.agregarError(
-                        "Operando derecho de '" + operador + "' debe ser integer, encontrado: " + tipoDer,
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
-            }
-
-            // Las operaciones relacionales siempre retornan boolean
-            tipoIzq = "boolean";
-        }
-
-        return tipoIzq;
+        return semanticVisitor.getComparisonVisitor().visitRelationalExpr(ctx);
     }
 
     // Delegación a VariableVisitor para operaciones aritméticas

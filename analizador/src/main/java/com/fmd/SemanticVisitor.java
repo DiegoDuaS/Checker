@@ -19,6 +19,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     private final VariableVisitor variableVisitor = new VariableVisitor(this);
     private final FunctionsVisitor functionsVisitor = new FunctionsVisitor(this);
     private final LogicalVisitor logicalVisitor = new LogicalVisitor(this);
+    private final ComparisonVisitor comparisonVisitor = new ComparisonVisitor(this);
 
     public SemanticVisitor() {
         this.entornoActual = new Entorno(null);
@@ -98,7 +99,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitIfStatement(CompiscriptParser.IfStatementContext ctx) {
         if (ctx.expression() != null) {
-            String tipoCond = logicalVisitor.visit(ctx.expression());
+            String tipoCond = comparisonVisitor.visit(ctx.expression());
             if (!"boolean".equals(tipoCond)) {
                 agregarError(
                         "Condición del if debe ser boolean, encontrada: " + tipoCond,
@@ -116,7 +117,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitWhileStatement(CompiscriptParser.WhileStatementContext ctx) {
         if (ctx.expression() != null) {
-            String tipoCond = logicalVisitor.visit(ctx.expression());
+            String tipoCond = comparisonVisitor.visit(ctx.expression());
             if (!"boolean".equals(tipoCond)) {
                 agregarError(
                         "Condición del while debe ser boolean, encontrada: " + tipoCond,
@@ -206,6 +207,10 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return logicalVisitor;
     }
 
+    public ComparisonVisitor getComparisonVisitor() {
+        return comparisonVisitor;
+    }
+
     // Delegación de expresiones lógicas al LogicalVisitor
     @Override
     public Void visitLogicalOrExpr(CompiscriptParser.LogicalOrExprContext ctx) {
@@ -221,13 +226,13 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
 
     @Override
     public Void visitEqualityExpr(CompiscriptParser.EqualityExprContext ctx) {
-        logicalVisitor.visit(ctx);
+        comparisonVisitor.visit(ctx);
         return null;
     }
 
     @Override
     public Void visitRelationalExpr(CompiscriptParser.RelationalExprContext ctx) {
-        logicalVisitor.visit(ctx);
+        comparisonVisitor.visit(ctx);
         return null;
     }
 
@@ -265,7 +270,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitExpressionStatement(CompiscriptParser.ExpressionStatementContext ctx) {
         if (ctx.expression() != null) {
-            logicalVisitor.visit(ctx.expression()); // Usar logicalVisitor para expresiones completas
+            comparisonVisitor.visit(ctx.expression()); // Usar comparisonVisitor para expresiones completas
         }
         return null;
     }
@@ -273,7 +278,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitPrintStatement(CompiscriptParser.PrintStatementContext ctx) {
         if (ctx.expression() != null) {
-            logicalVisitor.visit(ctx.expression()); // Usar logicalVisitor para expresiones completas
+            comparisonVisitor.visit(ctx.expression()); // Usar comparisonVisitor para expresiones completas
         }
         return null;
     }
