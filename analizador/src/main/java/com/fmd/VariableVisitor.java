@@ -1,5 +1,5 @@
 package com.fmd;
-
+import com.fmd.modules.SemanticError;
 import com.fmd.modules.Symbol;
 import org.antlr.v4.runtime.tree.ParseTree;
 
@@ -294,47 +294,34 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         return sym.getType();
     }
 
+// Solo mostrando los métodos que cambian para operaciones aritméticas
+
     /**
      * Maneja operaciones aditivas: + y -
      * Valida que ambos operandos sean integer
      */
     @Override
     public String visitAdditiveExpr(CompiscriptParser.AdditiveExprContext ctx) {
-        // Obtener el primer operando (siempre existe)
         String tipoIzq = visit(ctx.multiplicativeExpr(0));
 
-        // Si solo hay un operando, retornamos su tipo (no hay operación)
         if (ctx.multiplicativeExpr().size() == 1) {
             return tipoIzq;
         }
 
-        // Procesar todas las operaciones de suma/resta en cadena
         for (int i = 1; i < ctx.multiplicativeExpr().size(); i++) {
             String tipoDer = visit(ctx.multiplicativeExpr(i));
             String operador = ctx.getChild(2 * i - 1).getText(); // +, -
 
-            // Validar que ambos operandos sean integer
-            if (!"integer".equals(tipoIzq)) {
+            // Validar que ambos operandos sean integer usando mensaje centralizado
+            if (!"integer".equals(tipoIzq) || !"integer".equals(tipoDer)) {
                 semanticVisitor.agregarError(
-                        "Operando izquierdo de '" + operador + "' debe ser integer, encontrado: " + tipoIzq,
+                        SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
                         ctx.start.getLine(),
                         ctx.start.getCharPositionInLine()
                 );
-            }
-
-            if (!"integer".equals(tipoDer)) {
-                semanticVisitor.agregarError(
-                        "Operando derecho de '" + operador + "' debe ser integer, encontrado: " + tipoDer,
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
-            }
-
-            // Si ambos son integer, el resultado es integer
-            if ("integer".equals(tipoIzq) && "integer".equals(tipoDer)) {
-                tipoIzq = "integer";
+                tipoIzq = "desconocido";
             } else {
-                tipoIzq = "desconocido"; // Tipo inválido por el error
+                tipoIzq = "integer";
             }
         }
 
@@ -343,54 +330,38 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
     /**
      * Maneja operaciones multiplicativas: *, / y %
-     * Valida que ambos operandos sean integer
      */
     @Override
     public String visitMultiplicativeExpr(CompiscriptParser.MultiplicativeExprContext ctx) {
-        // Obtener el primer operando (siempre existe)
         String tipoIzq = visit(ctx.unaryExpr(0));
 
-        // Si solo hay un operando, retornamos su tipo (no hay operación)
         if (ctx.unaryExpr().size() == 1) {
             return tipoIzq;
         }
 
-        // Procesar todas las operaciones de multiplicación/división en cadena
         for (int i = 1; i < ctx.unaryExpr().size(); i++) {
             String tipoDer = visit(ctx.unaryExpr(i));
             String operador = ctx.getChild(2 * i - 1).getText(); // *, /, %
 
-            // Validar que ambos operandos sean integer
-            if (!"integer".equals(tipoIzq)) {
-                semanticVisitor.agregarError(
-                        "Operando izquierdo de '" + operador + "' debe ser integer, encontrado: " + tipoIzq,
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
-            }
-
-            if (!"integer".equals(tipoDer)) {
-                semanticVisitor.agregarError(
-                        "Operando derecho de '" + operador + "' debe ser integer, encontrado: " + tipoDer,
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
-            }
-
-            // Validación especial para división por cero (opcional)
+            // Validación especial para división por cero usando mensaje centralizado
             if ("/".equals(operador) && "0".equals(ctx.unaryExpr(i).getText())) {
                 semanticVisitor.agregarError(
-                        "División por cero detectada",
+                        SemanticError.getDivisionByZeroMessage(),
                         ctx.start.getLine(),
                         ctx.start.getCharPositionInLine()
                 );
             }
 
-            // Si ambos son integer, el resultado es integer
-            if ("integer".equals(tipoIzq) && "integer".equals(tipoDer)) {
-                tipoIzq = "integer";
+            // Validar que ambos operandos sean integer usando mensaje centralizado
+            if (!"integer".equals(tipoIzq) || !"integer".equals(tipoDer)) {
+                semanticVisitor.agregarError(
+                        SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
+                        ctx.start.getLine(),
+                        ctx.start.getCharPositionInLine()
+                );
+                tipoIzq = "desconocido";
             } else {
-                tipoIzq = "desconocido"; // Tipo inválido por el error
+                tipoIzq = "integer";
             }
         }
 
@@ -402,12 +373,10 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
      */
     @Override
     public String visitUnaryExpr(CompiscriptParser.UnaryExprContext ctx) {
-        // Si no hay operador unario, es solo primaryExpr
         if (ctx.getChildCount() == 1) {
             return visit(ctx.primaryExpr());
         }
 
-        // Hay operador unario (- o !)
         String operador = ctx.getChild(0).getText(); // - o !
         String tipoOperando = visit(ctx.unaryExpr());
 
@@ -415,7 +384,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             // Operador negación numérica: debe ser integer
             if (!"integer".equals(tipoOperando)) {
                 semanticVisitor.agregarError(
-                        "Operador '-' unario requiere operando integer, encontrado: " + tipoOperando,
+                        SemanticError.getUnaryArithmeticErrorMessage("-", tipoOperando),
                         ctx.start.getLine(),
                         ctx.start.getCharPositionInLine()
                 );
@@ -425,7 +394,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             // Operador negación lógica: debe ser boolean
             if (!"boolean".equals(tipoOperando)) {
                 semanticVisitor.agregarError(
-                        "Operador '!' requiere operando boolean, encontrado: " + tipoOperando,
+                        SemanticError.getUnaryLogicalErrorMessage("!", tipoOperando),
                         ctx.start.getLine(),
                         ctx.start.getCharPositionInLine()
                 );
