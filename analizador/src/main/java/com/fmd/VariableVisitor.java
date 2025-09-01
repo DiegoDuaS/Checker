@@ -1,9 +1,13 @@
 package com.fmd;
 import com.fmd.modules.SemanticError;
 import com.fmd.modules.Symbol;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import java.util.List;
 import java.util.ArrayList;
+
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseVisitor;
 
 
 public class VariableVisitor extends CompiscriptBaseVisitor<String> {
@@ -13,8 +17,6 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     public VariableVisitor(SemanticVisitor semanticVisitor) {
         this.semanticVisitor = semanticVisitor;
     }
-
-
 
     @Override
     public String visitConstantDeclaration(CompiscriptParser.ConstantDeclarationContext ctx) {
@@ -124,8 +126,8 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     }
 
     // -------------------
-// Verifica 'new Clase(...)' y tipos de parámetros usando getParams()
-// -------------------
+    // Verifica 'new Clase(...)' y tipos de parámetros usando getParams()
+    // -------------------
     private void detectNewExpr(ParseTree node) {
         if (node instanceof CompiscriptParser.NewExprContext newCtx) {
             String claseNueva = newCtx.Identifier().getText();
@@ -185,9 +187,6 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             detectNewExpr(node.getChild(i));
         }
     }
-
-
-
 
     /**
      * Busca un constructor en la clase o en su cadena de herencia.
@@ -284,13 +283,10 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         return sym.getType();
     }
 
-
-
-
     @Override
     public String visitIdentifierExpr(CompiscriptParser.IdentifierExprContext ctx) {
         if (ctx.Identifier() == null) {
-            // Por ejemplo, puede ser un literal, o otra expresión
+            // Por ejemplo, puede ser un literal, u otra expresión
             return visitChildren(ctx); // o manejarlo según corresponda
         }
 
@@ -453,25 +449,62 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
     @Override
     public String visitLeftHandSide(CompiscriptParser.LeftHandSideContext ctx) {
+        // Procesar cada suffixOp en orden
+        String currentType = visitPrimaryAtom(ctx.primaryAtom());
+
         if (ctx.suffixOp() != null) {
             for (CompiscriptParser.SuffixOpContext suffixOp : ctx.suffixOp()) {
-                // Revisamos los hijos del suffixOp
-                if (suffixOp.getChildCount() > 0) {
-                    for (int i = 0; i < suffixOp.getChildCount(); i++) {
-                        ParseTree child = suffixOp.getChild(i);
-                        if (child instanceof CompiscriptParser.CallExprContext) {
-                            return semanticVisitor.getFunctionsVisitor().visitCallExpr((CompiscriptParser.CallExprContext) child);
-                        }
+                if (suffixOp instanceof CompiscriptParser.CallExprContext) {
+                    // Es una llamada a función
+                    CompiscriptParser.CallExprContext callCtx = (CompiscriptParser.CallExprContext) suffixOp;
+                    currentType = semanticVisitor.getFunctionsVisitor().visitCallExpr(callCtx);
+
+                } else if (suffixOp instanceof CompiscriptParser.IndexExprContext) {
+                    // Es acceso a array - ejemplo: arr[0]
+                    if (currentType.endsWith("[]")) {
+                        // Remover una dimensión del array
+                        currentType = currentType.substring(0, currentType.length() - 2);
+                    } else {
+                        semanticVisitor.agregarError("Intento de indexar tipo no-array: " + currentType,
+                                suffixOp.start.getLine(), suffixOp.start.getCharPositionInLine());
+                        currentType = "ERROR";
                     }
+
+                } else if (suffixOp instanceof CompiscriptParser.PropertyAccessExprContext) {
+                    currentType = visitPropertyAccessExpr((CompiscriptParser.PropertyAccessExprContext) suffixOp);
                 }
             }
         }
 
-        // Si no hay CallExpr, seguimos visitando hijos
-        return visitChildren(ctx);
+        return currentType;
     }
 
+    public String visitPrimaryAtom(CompiscriptParser.PrimaryAtomContext ctx) {
+        if (ctx instanceof CompiscriptParser.IdentifierExprContext) {
+            // Es un identificador simple
+            String identifier = ((CompiscriptParser.IdentifierExprContext) ctx).Identifier().getText();
+            Symbol symbol = semanticVisitor.getEntornoActual().obtener(identifier);
 
+            if (symbol == null) {
+                semanticVisitor.agregarError("Variable '" + identifier + "' no declarada",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                return "ERROR";
+            }
+
+            return symbol.getType();
+
+        } else if (ctx instanceof CompiscriptParser.NewExprContext) {
+            // Es una construcción de objeto - ejemplo: new MiClase()
+            String className = ((CompiscriptParser.NewExprContext) ctx).Identifier().getText();
+            return className; // Retorna el tipo de la clase
+
+        } else if (ctx instanceof CompiscriptParser.ThisExprContext) {
+            // Es 'this' - depende del contexto de clase actual
+            return "this"; // O el tipo de la clase actual si estás dentro de una
+        }
+
+        return "OBJECT"; // Fallback
+    }
 
     // Maneja la creación de nuevas instancias
     @Override
@@ -493,12 +526,26 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     @Override
     public String visitPropertyAccessExpr(CompiscriptParser.PropertyAccessExprContext ctx) {
         // Evaluamos la izquierda: el objeto
-        String leftTipo = (String) visit(ctx.getParent()); // tipo del objeto
-        Symbol classSym = semanticVisitor.getEntornoActual().obtener(leftTipo);
+        ParserRuleContext parent = ctx.getParent();
+        Symbol classSym = null;
+
+        if (parent instanceof CompiscriptParser.LeftHandSideContext leftCtx) {
+            String leftTipo = visitPrimaryAtom(leftCtx.primaryAtom());
+            classSym = semanticVisitor.getEntornoActual().obtener(leftTipo);
+
+            if (classSym == null || classSym.getKind() != Symbol.Kind.CLASS) {
+                semanticVisitor.agregarError(
+                        "Tipo '" + leftTipo + "' no es una clase válida",
+                        ctx.start.getLine(),
+                        ctx.start.getCharPositionInLine()
+                );
+                return null;
+            }
+        }
 
         if (classSym == null || classSym.getKind() != Symbol.Kind.CLASS) {
             semanticVisitor.agregarError(
-                    "Tipo '" + leftTipo + "' no es una clase válida",
+                    "No se encontró una clase válida",
                     ctx.start.getLine(),
                     ctx.start.getCharPositionInLine()
             );
@@ -557,8 +604,8 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     @Override
     public String visitPropertyAssignExpr(CompiscriptParser.PropertyAssignExprContext ctx) {
         // Izquierda: base y miembro
-        String baseName = ctx.leftHandSide().getText().split("\\.")[0];
-        String memberName = ctx.leftHandSide().getText().split("\\.")[1];
+        String baseName = ctx.leftHandSide().getText();
+        String memberName = ctx.Identifier().getText();
 
         System.out.println("DEBUG >> PropertyAssignExpr: " + baseName + "." + memberName);
 
