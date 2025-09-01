@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.fmd.modules.SemanticError;
+import com.fmd.CompiscriptParser;
 
 public class FunctionSemanticTest {
 
@@ -279,7 +280,7 @@ public class FunctionSemanticTest {
 
         List<SemanticError> errors = analyzeCode(code);
         assertNotNull(errors);
-        assertFalse(errors.isEmpty(), "Debería funcionar closure");
+        assertTrue(errors.isEmpty(), "Debería funcionar closure");
     }
 
     @Test

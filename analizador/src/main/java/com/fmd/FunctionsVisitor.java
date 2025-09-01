@@ -7,6 +7,8 @@ import java.util.Set;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import com.fmd.modules.Symbol;
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseVisitor;
 
 public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
     private final SemanticVisitor semanticVisitor;
@@ -121,8 +123,6 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         String[] parts = getFunctionParts(ctx);
         String baseName = parts[0];    // null o "unknown" si no hay objeto
         String methodName = parts[1];  // nombre de la función o método
-
-
 
         // ============================
         // CASO 1: objeto.funcion()
@@ -241,6 +241,23 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                     );
                     return "ERROR";
                 }
+
+                // Validar tipos de argumentos
+                if (actualArgs > 0) {
+                    List<Symbol> functionParams = funcSym.getParams();
+                    List<CompiscriptParser.ExpressionContext> args = ctx.arguments().expression();
+                    for (int i = 0; i < actualArgs; i++) {
+                        String actualType = semanticVisitor.getVariableVisitor().visit(args.get(i));
+                        String expectedType = functionParams.get(i).getType();
+
+                        if (!typesCompatible(actualType, expectedType)) {
+                            semanticVisitor.agregarError("Argumento " + (i + 1) + " en función '" +
+                                            funcSym.getName() + "': esperado " + expectedType + ", encontrado " + actualType,
+                                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                        }
+                    }
+                }
+
                 return funcSym.getType();
             }
 
