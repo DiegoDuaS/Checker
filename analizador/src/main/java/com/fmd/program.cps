@@ -33,7 +33,7 @@ for (let i: integer = 0; i < 3; i = i + 1) {
   print("Loop index: " + i);
 }
 
-foreach (n in numbers) {
+foreach (zn in numbers) {
   if (n == 3) {
     continue;
   }
@@ -119,3 +119,24 @@ function factorial(n: integer): integer {
 
 // Program end
 print("Program finished.");
+
+
+//  VÁLIDO (dentro de print):
+
+print("5 + 1 = " + addFive);        // string + integer = string
+print("Result: " + 42);             // string + integer = string
+print(5 + 10);                      // integer + integer = integer
+
+// INVÁLIDO (fuera de print):
+
+let a = 1 + true;                   // ERROR: integer + boolean
+let b = "text" + 5;                 // ERROR: string + integer (fuera de print)
+let myString = "hola";
+let myNumber = 7;
+let result = myString + myNumber;   // ERROR: concatenación fuera de print
+
+//VÁLIDO (fuera de print):
+let sum = 5 + 10;                   // integer + integer = integer
+let x = 2;
+let y = 7;
+let result_1 = x + y;                 // integer + integer = integer (si x,y son integer)
