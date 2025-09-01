@@ -558,7 +558,7 @@ public class DataStructuresTest {
             class ListaNumeros {
                 let datos: integer[];
                 
-                function constructor(tamaño: integer) {
+                function constructor(tamano: integer) {
                     this.datos = [];
                 }
                 
