@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.fmd.modules.SemanticError;
+import com.fmd.CompiscriptParser;
 
 public class ClassesTest {
 
@@ -94,8 +95,9 @@ public class ClassesTest {
         """;
 
         List<SemanticError> errors = analyzeCode(code);
+        assertNotNull(errors);
         assertEquals(1, errors.size());
-        assertTrue(errors.get(0).getMensaje().contains("sin un objeto de tipo 'Perro'"));
+        assertTrue(errors.get(0).getMensaje().contains("no declarada"));
     }
 
     @Test
@@ -183,17 +185,17 @@ public class ClassesTest {
     @Test
     void testMethodCallSpeak() {
         String code = """
-    class Animal {
-        let name: string = "hugo";
-
-        function speak(): string {
-            return this.name + " makes a sound.";
+        class Animal {
+            let name: string = "hugo";
+    
+            function speak(): string {
+                return this.name + " makes a sound.";
+            }
         }
-    }
-
-    var pet: Animal = new Animal();
-    print(pet.speak());
-    """;
+    
+        var pet: Animal = new Animal();
+        print(pet.speak());
+        """;
 
         List<SemanticError> errors = analyzeCode(code);
         errors.forEach(e -> System.out.println(e.getMensaje()));
@@ -258,28 +260,29 @@ public class ClassesTest {
     @Test
     void testHerenciaMetodo() {
         String code = """
-    class Animal {
-        let name: string = "hugo";
-        let casa: string;
-
-        function constructor(name: string) {
-            this.name = name;
+        class Animal {
+            let name: string = "hugo";
+            let casa: string;
+    
+            function constructor(name: string) {
+                this.name = name;
+            }
+    
+            function speak(): string {
+                return this.name + " makes a sound.";
+            }
         }
-
-        function speak(): string {
-            return this.name + " makes a sound.";
+    
+        class Dog : Animal {
+            let owner: string;
         }
-    }
-
-    class Dog : Animal {
-        let owner: string;
-    }
-
-    let dog: Dog = new Dog("Hugo");
-    print(dog.speak());
-    """;
+    
+        let dog: Dog = new Dog("Hugo");
+        print(dog.speak());
+        """;
 
         List<SemanticError> errors = analyzeCode(code);
+        assertNotNull(errors);
         errors.forEach(e -> System.out.println(e.getMensaje()));
 
         // La llamada a speak() debe ser válida, porque Dog hereda de Animal

@@ -2,6 +2,9 @@ package com.fmd;
 
 import com.fmd.modules.Symbol;
 
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseListener;
+
 public class ClassesListener extends CompiscriptBaseListener {
 
     private final SemanticVisitor semanticVisitor;
@@ -31,11 +34,13 @@ public class ClassesListener extends CompiscriptBaseListener {
         }
 
         semanticVisitor.getEntornoActual().agregar(clase);
+        semanticVisitor.entrarScope();
         currentClass = clase;
     }
 
     @Override
     public void exitClassDeclaration(CompiscriptParser.ClassDeclarationContext ctx) {
+        semanticVisitor.salirScope();
         currentClass = null;
     }
 

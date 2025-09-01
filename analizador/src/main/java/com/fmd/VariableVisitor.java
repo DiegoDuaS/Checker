@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import com.fmd.CompiscriptParser;
 import com.fmd.CompiscriptBaseVisitor;
 
-
 public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     private final SemanticVisitor semanticVisitor;
 
@@ -510,7 +509,8 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         String currentType = visitPrimaryAtom(ctx.primaryAtom());
 
         if (ctx.suffixOp() != null) {
-            for (CompiscriptParser.SuffixOpContext suffixOp : ctx.suffixOp()) {
+            for (int i = 0; i < ctx.suffixOp().size(); i++) {
+                CompiscriptParser.SuffixOpContext suffixOp = ctx.suffixOp().get(i);
                 if (suffixOp instanceof CompiscriptParser.CallExprContext) {
                     // Es una llamada a función
                     CompiscriptParser.CallExprContext callCtx = (CompiscriptParser.CallExprContext) suffixOp;
@@ -528,6 +528,15 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                     }
 
                 } else if (suffixOp instanceof CompiscriptParser.PropertyAccessExprContext) {
+                    if (i+1 < ctx.suffixOp().size()) { // Verificar si se accede a un metodo
+                        CompiscriptParser.SuffixOpContext nextSuffixOp = ctx.suffixOp().get(i+1);
+                        if (nextSuffixOp instanceof CompiscriptParser.CallExprContext) {
+                            // Es una llamada a función
+                            CompiscriptParser.CallExprContext callCtx = (CompiscriptParser.CallExprContext) nextSuffixOp;
+                            return semanticVisitor.getFunctionsVisitor().visitCallExpr(callCtx);
+
+                        }
+                    }
                     currentType = visitPropertyAccessExpr((CompiscriptParser.PropertyAccessExprContext) suffixOp);
                 }
             }
@@ -612,13 +621,9 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         String propName = ctx.Identifier().getText();
         Symbol propSym = null;
 
-        // Buscar la propiedad/método en la clase
-        for (Symbol s : semanticVisitor.getEntornoActual().getAllSymbols().values()) {
-            if (s.getEnclosingClassName() != null && s.getEnclosingClassName().equals(classSym.getName())
-                    && s.getName().equals(propName)) {
-                propSym = s;
-                break;
-            }
+        // Buscar la propiedad en la clase
+        if (classSym.getMembers().containsKey(propName)){
+            propSym = classSym.getMembers().get(propName);
         }
 
         if (propSym == null) {
