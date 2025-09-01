@@ -18,6 +18,8 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     private final Entorno raiz;
     private Symbol lastSymbol;
     private Symbol currentClass;
+    private boolean dentroDeContextoPrint = false;
+
 
     private final VariableVisitor variableVisitor = new VariableVisitor(this);
     private final FunctionsVisitor functionsVisitor = new FunctionsVisitor(this);
@@ -28,6 +30,14 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     public SemanticVisitor() {
         this.entornoActual = new Entorno(null);
         this.raiz = this.entornoActual; // root/global
+    }
+
+    public boolean isDentroDeContextoPrint() {
+        return dentroDeContextoPrint;
+    }
+
+    public void setDentroDeContextoPrint(boolean value) {
+        this.dentroDeContextoPrint = value;
     }
 
     public static class Entorno {
@@ -301,7 +311,10 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitPrintStatement(CompiscriptParser.PrintStatementContext ctx) {
         if (ctx.expression() != null) {
-            comparisonVisitor.visit(ctx.expression()); // Usar comparisonVisitor para expresiones completas
+            setDentroDeContextoPrint(true);
+            comparisonVisitor.visit(ctx.expression()); // Usar comparisonVisitor para expresiones complet
+            setDentroDeContextoPrint(false);
+
         }
         return null;
     }

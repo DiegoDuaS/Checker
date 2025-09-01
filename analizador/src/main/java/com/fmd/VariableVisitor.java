@@ -333,20 +333,77 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             String tipoDer = visit(ctx.multiplicativeExpr(i));
             String operador = ctx.getChild(2 * i - 1).getText(); // +, -
 
-            // Validar que ambos operandos sean integer usando mensaje centralizado
-            if (!"integer".equals(tipoIzq) || !"integer".equals(tipoDer)) {
-                semanticVisitor.agregarError(
-                        SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
-                tipoIzq = "desconocido";
-            } else {
-                tipoIzq = "integer";
+            if ("+".equals(operador)) {
+                // Para el operador '+': lógica especial según el contexto
+                if (semanticVisitor.isDentroDeContextoPrint()) {
+                    // DENTRO DE PRINT: permite concatenación
+                    if (esConcatenacionValidaEnPrint(tipoIzq, tipoDer)) {
+                        // Si alguno es string, el resultado es string (concatenación)
+                        if ("string".equals(tipoIzq) || "string".equals(tipoDer)) {
+                            tipoIzq = "string";
+                        } else {
+                            // Si ambos son integer, suma aritmética
+                            tipoIzq = "integer";
+                        }
+                    } else {
+                        semanticVisitor.agregarError(
+                                "Operación '+' no válida en print entre tipos: '" + tipoIzq + "' y '" + tipoDer + "'",
+                                ctx.start.getLine(),
+                                ctx.start.getCharPositionInLine()
+                        );
+                        tipoIzq = "desconocido";
+                    }
+                } else {
+                    // FUERA DE PRINT: solo suma aritmética entre integers
+                    if (!"integer".equals(tipoIzq) || !"integer".equals(tipoDer)) {
+                        semanticVisitor.agregarError(
+                                SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
+                                ctx.start.getLine(),
+                                ctx.start.getCharPositionInLine()
+                        );
+                        tipoIzq = "desconocido";
+                    } else {
+                        tipoIzq = "integer";
+                    }
+                }
+            } else if ("-".equals(operador)) {
+                // Para el operador '-': solo resta aritmética entre integers (siempre)
+                if (!"integer".equals(tipoIzq) || !"integer".equals(tipoDer)) {
+                    semanticVisitor.agregarError(
+                            SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
+                            ctx.start.getLine(),
+                            ctx.start.getCharPositionInLine()
+                    );
+                    tipoIzq = "desconocido";
+                } else {
+                    tipoIzq = "integer";
+                }
             }
         }
 
         return tipoIzq;
+    }
+
+    /**
+     * Verifica si una operación es válida DENTRO de contextos de print
+     * Permite concatenación más flexible
+     */
+    private boolean esConcatenacionValidaEnPrint(String tipo1, String tipo2) {
+        // Ignorar errores previos
+        if ("desconocido".equals(tipo1) || "desconocido".equals(tipo2)) {
+            return true;
+        }
+
+        // En contextos de print, permite:
+        // string + string, string + integer, integer + string, integer + integer
+        return (esStringOInteger(tipo1) && esStringOInteger(tipo2));
+    }
+
+    /**
+     * Verifica si un tipo es string o integer
+     */
+    private boolean esStringOInteger(String tipo) {
+        return "string".equals(tipo) || "integer".equals(tipo);
     }
 
     /**
