@@ -1,4 +1,5 @@
 package com.fmd;
+import com.fmd.modules.SemanticError;
 
 public class LogicalVisitor extends CompiscriptBaseVisitor<String> {
     private final SemanticVisitor semanticVisitor;
@@ -7,29 +8,27 @@ public class LogicalVisitor extends CompiscriptBaseVisitor<String> {
         this.semanticVisitor = semanticVisitor;
     }
 
+// Solo mostrando los métodos que cambian para operaciones lógicas
+
     /**
      * Maneja operaciones lógicas OR (||)
      * Valida que ambos operandos sean boolean
      */
     @Override
     public String visitLogicalOrExpr(CompiscriptParser.LogicalOrExprContext ctx) {
-        // Obtener el primer operando (siempre existe)
         String tipoIzq = visit(ctx.logicalAndExpr(0));
 
-        // Si solo hay un operando, retornamos su tipo (no hay operación)
         if (ctx.logicalAndExpr().size() == 1) {
             return tipoIzq;
         }
 
-        // Procesar todas las operaciones OR en cadena
         for (int i = 1; i < ctx.logicalAndExpr().size(); i++) {
             String tipoDer = visit(ctx.logicalAndExpr(i));
-            String operador = "||";
 
-            // Validar que ambos operandos sean boolean
+            // Validar que ambos operandos sean boolean usando mensajes centralizados
             if (!"boolean".equals(tipoIzq)) {
                 semanticVisitor.agregarError(
-                        "Operando izquierdo de '" + operador + "' debe ser boolean, encontrado: " + tipoIzq,
+                        SemanticError.getLogicalErrorMessage("||", tipoIzq, true),
                         ctx.start.getLine(),
                         ctx.start.getCharPositionInLine()
                 );
@@ -37,7 +36,7 @@ public class LogicalVisitor extends CompiscriptBaseVisitor<String> {
 
             if (!"boolean".equals(tipoDer)) {
                 semanticVisitor.agregarError(
-                        "Operando derecho de '" + operador + "' debe ser boolean, encontrado: " + tipoDer,
+                        SemanticError.getLogicalErrorMessage("||", tipoDer, false),
                         ctx.start.getLine(),
                         ctx.start.getCharPositionInLine()
                 );
@@ -47,7 +46,7 @@ public class LogicalVisitor extends CompiscriptBaseVisitor<String> {
             if ("boolean".equals(tipoIzq) && "boolean".equals(tipoDer)) {
                 tipoIzq = "boolean";
             } else {
-                tipoIzq = "desconocido"; // Tipo inválido por el error
+                tipoIzq = "desconocido";
             }
         }
 
@@ -60,23 +59,19 @@ public class LogicalVisitor extends CompiscriptBaseVisitor<String> {
      */
     @Override
     public String visitLogicalAndExpr(CompiscriptParser.LogicalAndExprContext ctx) {
-        // Obtener el primer operando (siempre existe)
         String tipoIzq = visit(ctx.equalityExpr(0));
 
-        // Si solo hay un operando, retornamos su tipo (no hay operación)
         if (ctx.equalityExpr().size() == 1) {
             return tipoIzq;
         }
 
-        // Procesar todas las operaciones AND en cadena
         for (int i = 1; i < ctx.equalityExpr().size(); i++) {
             String tipoDer = visit(ctx.equalityExpr(i));
-            String operador = "&&";
 
-            // Validar que ambos operandos sean boolean
+            // Validar que ambos operandos sean boolean usando mensajes centralizados
             if (!"boolean".equals(tipoIzq)) {
                 semanticVisitor.agregarError(
-                        "Operando izquierdo de '" + operador + "' debe ser boolean, encontrado: " + tipoIzq,
+                        SemanticError.getLogicalErrorMessage("&&", tipoIzq, true),
                         ctx.start.getLine(),
                         ctx.start.getCharPositionInLine()
                 );
@@ -84,7 +79,7 @@ public class LogicalVisitor extends CompiscriptBaseVisitor<String> {
 
             if (!"boolean".equals(tipoDer)) {
                 semanticVisitor.agregarError(
-                        "Operando derecho de '" + operador + "' debe ser boolean, encontrado: " + tipoDer,
+                        SemanticError.getLogicalErrorMessage("&&", tipoDer, false),
                         ctx.start.getLine(),
                         ctx.start.getCharPositionInLine()
                 );
@@ -94,7 +89,7 @@ public class LogicalVisitor extends CompiscriptBaseVisitor<String> {
             if ("boolean".equals(tipoIzq) && "boolean".equals(tipoDer)) {
                 tipoIzq = "boolean";
             } else {
-                tipoIzq = "desconocido"; // Tipo inválido por el error
+                tipoIzq = "desconocido";
             }
         }
 
