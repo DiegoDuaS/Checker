@@ -186,6 +186,38 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitTryCatchStatement(CompiscriptParser.TryCatchStatementContext ctx) {
+        // Abrir scope para el bloque try
+        entrarScope();
+        visit(ctx.block(0)); // Bloque try
+        salirScope();
+
+        // Si hay catch
+        if (ctx.block().size() > 1) {
+            entrarScope();
+            // Declarar la variable de excepción en el scope del catch
+            if (ctx.Identifier() != null) {
+                String exName = ctx.Identifier().getText();
+                Symbol exSym = new Symbol(
+                        exName,
+                        Symbol.Kind.VARIABLE,
+                        "string", // o tipo específico si tu gramática lo define
+                        ctx,
+                        ctx.start.getLine(),
+                        ctx.start.getCharPositionInLine(),
+                        true
+                );
+                entornoActual.agregar(exSym);
+            }
+            visit(ctx.block(1)); // Bloque catch
+            salirScope();
+        }
+
+        return null;
+    }
+
+
 
 
     @Override

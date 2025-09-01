@@ -106,7 +106,7 @@ public class FunctionSemanticTest {
     void testRecursiveFunctionCorrect() {
         String code = """
             function factorial(n: integer): integer {
-                if (n <= 1) return 1;
+                if (n <= 1) { return 1; }
                 return n * factorial(n - 1);
             }
             let result = factorial(5);
@@ -287,7 +287,7 @@ public class FunctionSemanticTest {
     void testRecursiveFunction() {
         String code = """
             function fibonacci(n: integer): integer {
-                if (n <= 1) return n;
+                if (n <= 1) { return n; }
                 return fibonacci(n - 1) + fibonacci(n - 2);
             }
             let result = fibonacci(10);

@@ -607,16 +607,29 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         String propName = ctx.Identifier().getText();
         Symbol propSym = null;
 
-        // Buscar la propiedad en la clase
-        if (classSym.getMembers().containsKey(propName)){
-            propSym = classSym.getMembers().get(propName);
+        // Buscar la propiedad en la clase y superclases
+        Symbol currentClass = classSym;
+        while (propSym == null && currentClass != null) {
+            if (currentClass.getMembers().containsKey(propName)) {
+                propSym = currentClass.getMembers().get(propName);
+                break;
+            }
+            if (currentClass.getSuperClass() != null) {
+                currentClass = semanticVisitor.getEntornoActual().obtener(currentClass.getSuperClass());
+            } else {
+                currentClass = null;
+            }
         }
 
         if (propSym == null) {
-            semanticVisitor.agregarError("'" + ctx.Identifier().getText() + "' no existe",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
+            semanticVisitor.agregarError(
+                    "La propiedad '" + propName + "' no existe en la clase '" + classSym.getName() + "' ni en sus superclases",
+                    ctx.start.getLine(),
+                    ctx.start.getCharPositionInLine()
+            );
             return "desconocido";
         }
+
 
         semanticVisitor.setLastSymbol(propSym);
 
