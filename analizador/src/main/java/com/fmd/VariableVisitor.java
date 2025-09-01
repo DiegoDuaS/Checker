@@ -5,6 +5,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Set;
 
 import com.fmd.CompiscriptParser;
 import com.fmd.CompiscriptBaseVisitor;
@@ -333,38 +334,23 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             String operador = ctx.getChild(2 * i - 1).getText(); // +, -
 
             if ("+".equals(operador)) {
-                // Para el operador '+': lógica especial según el contexto
-                if (semanticVisitor.isDentroDeContextoPrint()) {
-                    // DENTRO DE PRINT: permite concatenación
-                    if (esConcatenacionValidaEnPrint(tipoIzq, tipoDer)) {
-                        // Si alguno es string, el resultado es string (concatenación)
-                        if ("string".equals(tipoIzq) || "string".equals(tipoDer)) {
-                            tipoIzq = "string";
-                        } else {
-                            // Si ambos son integer, suma aritmética
-                            tipoIzq = "integer";
-                        }
-                    } else {
-                        semanticVisitor.agregarError(
-                                "Operación '+' no válida en print entre tipos: '" + tipoIzq + "' y '" + tipoDer + "'",
-                                ctx.start.getLine(),
-                                ctx.start.getCharPositionInLine()
-                        );
-                        tipoIzq = "desconocido";
+                // Para el operador '+': es válido sumar o concatenar
+                Set<String> tiposValidos = Set.of("string", "integer");
+
+                if (tiposValidos.contains(tipoIzq) && tiposValidos.contains(tipoDer)) {
+                    if(!tipoIzq.equals(tipoDer)){
+                        return "string";
                     }
+                    return tipoIzq;
                 } else {
-                    // FUERA DE PRINT: solo suma aritmética entre integers
-                    if (!"integer".equals(tipoIzq) || !"integer".equals(tipoDer)) {
-                        semanticVisitor.agregarError(
-                                SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
-                                ctx.start.getLine(),
-                                ctx.start.getCharPositionInLine()
-                        );
-                        tipoIzq = "desconocido";
-                    } else {
-                        tipoIzq = "integer";
-                    }
+                    semanticVisitor.agregarError(
+                            SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
+                            ctx.start.getLine(),
+                            ctx.start.getCharPositionInLine()
+                    );
+                    tipoIzq = "desconocido";
                 }
+
             } else if ("-".equals(operador)) {
                 // Para el operador '-': solo resta aritmética entre integers (siempre)
                 if (!"integer".equals(tipoIzq) || !"integer".equals(tipoDer)) {
