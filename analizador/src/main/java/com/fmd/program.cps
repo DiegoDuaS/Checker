@@ -90,7 +90,7 @@ print(dog.speak());
 print(dog.sit());
 
 print(dog.name);
-
+dog.name + 1;
 
 let amigo: Cat = new Cat("Michi");
 print(speak());
