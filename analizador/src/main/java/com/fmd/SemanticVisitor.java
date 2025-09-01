@@ -22,6 +22,8 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     private final VariableVisitor variableVisitor = new VariableVisitor(this);
     private final FunctionsVisitor functionsVisitor = new FunctionsVisitor(this);
     private final ClassesListener classesListener = new ClassesListener(this);
+    private final LogicalVisitor logicalVisitor = new LogicalVisitor(this);
+    private final ComparisonVisitor comparisonVisitor = new ComparisonVisitor(this);
 
     public SemanticVisitor() {
         this.entornoActual = new Entorno(null);
@@ -79,11 +81,9 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
 
     @Override
     public Void visitProgram(CompiscriptParser.ProgramContext ctx) {
-        entrarScope();
         for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
             visit(stmt);
         }
-        salirScope();
         return null;
     }
 
@@ -101,7 +101,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitIfStatement(CompiscriptParser.IfStatementContext ctx) {
         if (ctx.expression() != null) {
-            String tipoCond = variableVisitor.visit(ctx.expression());
+            String tipoCond = comparisonVisitor.visit(ctx.expression());
             if (!"boolean".equals(tipoCond)) {
                 agregarError(
                         "Condición del if debe ser boolean, encontrada: " + tipoCond,
@@ -119,7 +119,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitWhileStatement(CompiscriptParser.WhileStatementContext ctx) {
         if (ctx.expression() != null) {
-            String tipoCond = variableVisitor.visit(ctx.expression());
+            String tipoCond = comparisonVisitor.visit(ctx.expression());
             if (!"boolean".equals(tipoCond)) {
                 agregarError(
                         "Condición del while debe ser boolean, encontrada: " + tipoCond,
@@ -226,41 +226,74 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return functionsVisitor;
     }
 
-    // Delegación de expresiones al VariableVisitor
+    public LogicalVisitor getLogicalVisitor() {
+        return logicalVisitor;
+    }
+
+    public ComparisonVisitor getComparisonVisitor() {
+        return comparisonVisitor;
+    }
+
+    // Delegación de expresiones lógicas al LogicalVisitor
+    @Override
+    public Void visitLogicalOrExpr(CompiscriptParser.LogicalOrExprContext ctx) {
+        logicalVisitor.visit(ctx);
+        return null;
+    }
+
+    @Override
+    public Void visitLogicalAndExpr(CompiscriptParser.LogicalAndExprContext ctx) {
+        logicalVisitor.visit(ctx);
+        return null;
+    }
+
+    @Override
+    public Void visitEqualityExpr(CompiscriptParser.EqualityExprContext ctx) {
+        comparisonVisitor.visit(ctx);
+        return null;
+    }
+
+    @Override
+    public Void visitRelationalExpr(CompiscriptParser.RelationalExprContext ctx) {
+        comparisonVisitor.visit(ctx);
+        return null;
+    }
+
+    // Delegación de expresiones aritméticas al VariableVisitor
     @Override
     public Void visitAdditiveExpr(CompiscriptParser.AdditiveExprContext ctx) {
-        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        variableVisitor.visit(ctx);
         return null;
     }
 
     @Override
     public Void visitMultiplicativeExpr(CompiscriptParser.MultiplicativeExprContext ctx) {
-        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        variableVisitor.visit(ctx);
         return null;
     }
 
     @Override
     public Void visitUnaryExpr(CompiscriptParser.UnaryExprContext ctx) {
-        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        variableVisitor.visit(ctx);
         return null;
     }
 
     @Override
     public Void visitLiteralExpr(CompiscriptParser.LiteralExprContext ctx) {
-        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        variableVisitor.visit(ctx);
         return null;
     }
 
     @Override
     public Void visitIdentifierExpr(CompiscriptParser.IdentifierExprContext ctx) {
-        variableVisitor.visit(ctx); // Delegar al VariableVisitor
+        variableVisitor.visit(ctx);
         return null;
     }
 
     @Override
     public Void visitExpressionStatement(CompiscriptParser.ExpressionStatementContext ctx) {
         if (ctx.expression() != null) {
-            variableVisitor.visit(ctx.expression()); // Visitar la expresión
+            comparisonVisitor.visit(ctx.expression()); // Usar comparisonVisitor para expresiones completas
         }
         return null;
     }
@@ -268,7 +301,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     @Override
     public Void visitPrintStatement(CompiscriptParser.PrintStatementContext ctx) {
         if (ctx.expression() != null) {
-            variableVisitor.visit(ctx.expression()); // Visitar la expresión del print
+            comparisonVisitor.visit(ctx.expression()); // Usar comparisonVisitor para expresiones completas
         }
         return null;
     }
@@ -297,3 +330,4 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     }
 
 }
+

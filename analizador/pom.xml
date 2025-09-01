@@ -4,6 +4,13 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <parent>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-parent</artifactId>
+      <version>3.2.5</version>
+      <relativePath/>
+  </parent>
+
   <groupId>com.fmd</groupId>
   <artifactId>analizador</artifactId>
   <version>1.0-SNAPSHOT</version>
@@ -18,6 +25,8 @@
     <maven.compiler.target>17</maven.compiler.target>
   </properties>
 
+  <packaging>jar</packaging>
+
   <dependencies>
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -31,6 +40,11 @@
       <version>4.13.1</version> <!-- última versión estable -->
     </dependency>
 
+    <!-- Spring Web para crear API REST -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
   </dependencies>
 
   <build>
@@ -124,7 +138,12 @@
           <configuration>
               <mainClass>com.fmd.Main</mainClass>
           </configuration>
-      </plugin>
+        </plugin>
+        <!-- Para el API -->
+        <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+        </plugin>
     </plugins>
   </build>
 </project>

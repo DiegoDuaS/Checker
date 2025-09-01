@@ -34,7 +34,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         }
 
         if (ctx.expression() != null) {
-            String tipoExpresion = visit(ctx.expression());
+            String tipoExpresion = semanticVisitor.getLogicalVisitor().visit(ctx.expression());
 
             // Inferir tipo si no hay anotación
             if (tipo == null || "desconocido".equals(tipo)) {
@@ -92,10 +92,9 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         // -------------------
         if (ctx.initializer() != null && ctx.initializer().expression() != null) {
             CompiscriptParser.ExpressionContext exprCtx = ctx.initializer().expression();
-            String tipoInicializador = semanticVisitor.getExpressionType(exprCtx);
+            String tipoInicializador = semanticVisitor.getLogicalVisitor().visit(ctx.initializer().expression());
             // Recorrer el árbol recursivamente para detectar 'new Clase(...)'
             detectNewExpr(exprCtx);
-
             if (tipo == null) {
                 tipo = tipoInicializador;
             } else if (!tipo.equals(tipoInicializador) && !"desconocido".equals(tipoInicializador)) {
@@ -245,10 +244,11 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         }
 
         // Obtener tipo de la expresión
-        String tipoExpr = semanticVisitor.getExpressionType(ctx.expression(0));
+         String tipoExpr = semanticVisitor.getLogicalVisitor().visit(ctx.expression(0));
 
         // Chequeo de tipos
         if (!sym.getType().equals(tipoExpr) && !"desconocido".equals(tipoExpr) && !"null".equals(tipoExpr)) {
+
             semanticVisitor.agregarError(
                     "No se puede asignar valor de tipo '" + tipoExpr + "' a variable '" + nombreVar + "' de tipo '" + sym.getType() + "'",
                     ctx.start.getLine(), ctx.start.getCharPositionInLine()
@@ -468,7 +468,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         return visitChildren(ctx);
     }
 
-    // Maneja la creación de nuevas instancias: new Dog("Rex")
+    // Maneja la creación de nuevas instancias
     @Override
     public String visitNewExpr(CompiscriptParser.NewExprContext ctx) {
         String className = ctx.Identifier().getText();
@@ -526,32 +526,13 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     // Métodos para manejar la jerarquía de expresiones
     @Override
     public String visitExprNoAssign(CompiscriptParser.ExprNoAssignContext ctx) {
-        return visit(ctx.conditionalExpr());
+        return semanticVisitor.getLogicalVisitor().visit(ctx.conditionalExpr());
     }
 
 
     @Override
     public String visitTernaryExpr(CompiscriptParser.TernaryExprContext ctx) {
-        return visit(ctx.logicalOrExpr()); // Procesar la expresión principal
-    }
-    @Override
-    public String visitLogicalOrExpr(CompiscriptParser.LogicalOrExprContext ctx) {
-        return visit(ctx.logicalAndExpr(0));
-    }
-
-    @Override
-    public String visitLogicalAndExpr(CompiscriptParser.LogicalAndExprContext ctx) {
-        return visit(ctx.equalityExpr(0));
-    }
-
-    @Override
-    public String visitEqualityExpr(CompiscriptParser.EqualityExprContext ctx) {
-        return visit(ctx.relationalExpr(0));
-    }
-
-    @Override
-    public String visitRelationalExpr(CompiscriptParser.RelationalExprContext ctx) {
-        return visit(ctx.additiveExpr(0));
+        return semanticVisitor.getLogicalVisitor().visit(ctx.logicalOrExpr());
     }
 
     @Override
@@ -563,10 +544,8 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             return visit(ctx.leftHandSide());
         }
         if (ctx.expression() != null) {
-            return visit(ctx.expression());
+            return semanticVisitor.getLogicalVisitor().visit(ctx.expression());
         }
         return "desconocido";
     }
-
-
 }
