@@ -389,17 +389,29 @@ public class ControlFlowTest {
     @DisplayName("Error: For con inicialización de tipo incorrecto")
     void testInvalidForInitialization() {
         String code = """
-            for (let i: string = "0"; i != "5"; i = i + "1") {
-                print(i);
-            }
-            """;
+        for (let i: int = "0"; i != "5"; i = i + "1") {
+            print(i);
+        }
+        """;
 
         List<SemanticError> errors = analyzeCode(code);
         printErrors(errors);
 
-        // Este test puede variar dependiendo de si tu implementación permite strings en for
-        // Ajustar según las reglas específicas de tu lenguaje
+        // Validar errores esperados
+        List<String> expectedMessages = List.of(
+                "No se puede inicializar variable 'i' de tipo 'int' con expresión de tipo 'string'",
+                "No se pueden comparar tipos incompatibles: 'int' != 'string'",
+                "Operación '+' no válida entre tipos: 'int' y 'string'"
+        );
+
+        for (String msg : expectedMessages) {
+            assertTrue(errors.stream().anyMatch(e -> e.getMensaje().equals(msg)),
+                    "Se esperaba el error: " + msg);
+        }
+
+        assertEquals(expectedMessages.size(), errors.size(), "Debe generarse exactamente el número esperado de errores");
     }
+
 
     // ========================================
     // FOREACH LOOPS - CASOS VÁLIDOS
@@ -409,16 +421,80 @@ public class ControlFlowTest {
     @DisplayName("Foreach con arreglo válido")
     void testValidForeachArray() {
         String code = """
-            let numeros: integer[] = [1, 2, 3, 4, 5];
-            foreach (numero in numeros) {
-                print(numero);
-            }
-            """;
+        let numeros: integer[] = [1, 2, 3, 4, 5];
+        foreach (numero in numeros) {
+            print(numero);
+        }
+        """;
+
+        List<SemanticError> errors = analyzeCode(code);
+
+        // Imprimir errores si los hay (útil para debug)
+        printErrors(errors);
+
+        // Validar que no se generen errores
+        assertTrue(errors.isEmpty(), "Foreach con arreglo válido no debería generar errores");
+    }
+
+    @Test
+    @DisplayName("Foreach con arreglo de strings válido")
+    void testValidForeachStringArray() {
+        String code = """
+        let nombres: string[] = ["Ana", "Luis", "Pedro"];
+        foreach (nombre in nombres) {
+            print(nombre);
+        }
+        """;
 
         List<SemanticError> errors = analyzeCode(code);
         printErrors(errors);
-        // Note: Este test podría fallar si los arreglos no están implementados aún
-        // assertTrue(errors.isEmpty(), "Foreach con arreglo válido no debería generar errores");
+        assertTrue(errors.isEmpty(), "Foreach con arreglo de strings no debería generar errores");
+    }
+
+    @Test
+    @DisplayName("Foreach accediendo variable externa")
+    void testForeachWithOuterVariable() {
+        String code = """
+        let total: integer = 0;
+        let numeros: integer[] = [1,2,3];
+        foreach (n in numeros) {
+            total = total + n;
+        }
+        print(total);
+        """;
+
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+        assertTrue(errors.isEmpty(), "Foreach debería poder modificar variables externas al bloque");
+    }
+
+
+
+    // ========================================
+    // FOREACH LOOPS - CASOS INVALIDOS
+    // ========================================
+
+    @Test
+    @DisplayName("Foreach con iterable inválido")
+    void testInvalidForeachIterable() {
+        String code = """
+        let numero: integer = 5;
+        foreach (n in numero) {
+            print(n);
+        }
+        """;
+
+        List<SemanticError> errors = analyzeCode(code);
+
+        // Imprimir errores para debug
+        printErrors(errors);
+
+        // Validar que se haya detectado al menos un error
+        assertFalse(errors.isEmpty(), "Foreach con tipo no iterable debería generar errores");
+
+        // Validaciones específicas de los errores esperados
+        assertTrue(errors.stream().anyMatch(e -> e.getMensaje().contains("No se puede iterar")),
+                "Se esperaba error de tipo no iterable");
     }
 
     // ========================================
@@ -651,15 +727,15 @@ public class ControlFlowTest {
     @DisplayName("Control de flujo mixto complejo válido")
     void testValidComplexControlFlow() {
         String code = """
-            let números: integer[] = [1, 2, 3, 4, 5];
+            let numeros: integer[] = [1, 2, 3, 4, 5];
             let suma: integer = 0;
             
             for (let i: integer = 0; i < 5; i = i + 1) {
-                if (números[i] > 3) {
+                if (numeros[i] > 3) {
                     continue;
                 }
                 
-                suma = suma + números[i];
+                suma = suma + numeros[i];
                 
                 if (suma > 10) {
                     break;

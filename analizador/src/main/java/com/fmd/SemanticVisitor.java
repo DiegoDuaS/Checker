@@ -217,6 +217,84 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitForStatement(CompiscriptParser.ForStatementContext ctx) {
+        System.out.println("DEBUG >> visitForStatement()");
+        entrarScope();
+
+        // Inicialización: puede ser declaración o asignación
+        if (ctx.variableDeclaration() != null) {
+            System.out.println("DEBUG >> For: declarando variable");
+            variableVisitor.visitVariableDeclaration(ctx.variableDeclaration());
+        } else if (ctx.assignment() != null) {
+            System.out.println("DEBUG >> For: asignación inicial");
+            variableVisitor.visitAssignment(ctx.assignment());
+        }
+
+        // Condición
+        if (ctx.expression(0) != null) {
+            String tipoCond = comparisonVisitor.visit(ctx.expression(0));
+            System.out.println("DEBUG >> For: tipo condición = " + tipoCond);
+            if (!"boolean".equals(tipoCond)) {
+                agregarError(
+                        "Condición del for debe ser boolean, encontrada: " + tipoCond,
+                        ctx.start.getLine(),
+                        ctx.start.getCharPositionInLine()
+                );
+            }
+        }
+
+        // Incremento (solo evaluar tipo)
+        if (ctx.expression(1) != null) {
+            System.out.println("DEBUG >> For: evaluando incremento");
+            variableVisitor.visit(ctx.expression(1));
+        }
+
+        // Bloque del for
+        System.out.println("DEBUG >> For: visitando bloque");
+        visit(ctx.block());
+
+        salirScope();
+        System.out.println("DEBUG >> For: saliendo de scope");
+        return null;
+    }
+
+    @Override
+    public Void visitForeachStatement(CompiscriptParser.ForeachStatementContext ctx) {
+        entrarScope();
+
+        String iterName = ctx.Identifier().getText();
+        String iterableType = variableVisitor.visit(ctx.expression()); // tipo del iterable
+
+        // Verificar que sea tipo arreglo
+        if (!iterableType.endsWith("[]")) {
+            agregarError(
+                    "No se puede iterar sobre '" + iterName + "' de tipo '" + iterableType + "'",
+                    ctx.start.getLine(),
+                    ctx.start.getCharPositionInLine()
+            );
+        } else {
+            // Declarar la variable iteradora solo si es válido
+            String elementType = iterableType.substring(0, iterableType.length() - 2); // quitar []
+            Symbol iterSym = new Symbol(
+                    iterName,
+                    Symbol.Kind.VARIABLE,
+                    elementType,
+                    ctx,
+                    ctx.start.getLine(),
+                    ctx.start.getCharPositionInLine(),
+                    true
+            );
+            entornoActual.agregar(iterSym);
+        }
+
+        // Bloque del foreach
+        visit(ctx.block());
+
+        salirScope();
+        return null;
+    }
+
 
 
 
