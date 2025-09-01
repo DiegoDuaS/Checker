@@ -295,6 +295,51 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         return null;
     }
 
+    @Override
+    public Void visitSwitchStatement(CompiscriptParser.SwitchStatementContext ctx) {
+        System.out.println("DEBUG >> visitSwitchStatement()");
+        String switchType = variableVisitor.visit(ctx.expression());
+        System.out.println("DEBUG >> Tipo del switch: " + switchType);
+
+        for (CompiscriptParser.SwitchCaseContext caseCtx : ctx.switchCase()) {
+            visitSwitchCase(caseCtx, switchType);
+        }
+
+        if (ctx.defaultCase() != null) {
+            visitDefaultCase(ctx.defaultCase());
+        }
+
+        return null;
+    }
+
+    public Void visitSwitchCase(CompiscriptParser.SwitchCaseContext ctx, String switchType) {
+        System.out.println("DEBUG >> visitSwitchCase()");
+        String caseType = variableVisitor.visit(ctx.expression());
+        if (!switchType.equals(caseType)) {
+            agregarError(
+                    "Tipo del case '" + caseType + "' no coincide con tipo del switch '" + switchType + "'",
+                    ctx.start.getLine(),
+                    ctx.start.getCharPositionInLine()
+            );
+        }
+
+        // Visitar statements del case
+        for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
+            visit(stmt);
+        }
+
+        return null;
+    }
+
+    public Void visitDefaultCase(CompiscriptParser.DefaultCaseContext ctx) {
+        System.out.println("DEBUG >> visitDefaultCase()");
+        for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
+            visit(stmt);
+        }
+        return null;
+    }
+
+
 
 
 

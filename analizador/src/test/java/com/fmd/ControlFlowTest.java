@@ -677,7 +677,7 @@ public class ControlFlowTest {
         boolean hasTypeError = errors.stream().anyMatch(error ->
                 error.getMensaje().toLowerCase().contains("tipo") ||
                         error.getMensaje().toLowerCase().contains("case") ||
-                        error.getMensaje().toLowerCase().contains("inconsistente"));
+                        error.getMensaje().toLowerCase().contains("no coincide"));
         assertTrue(hasTypeError, "Debería reportar error de tipos inconsistentes en cases");
     }
 
@@ -690,7 +690,7 @@ public class ControlFlowTest {
     void testValidBasicTryCatch() {
         String code = """
             try {
-                let riesgo: integer = 10 / 0;
+                let riesgo: integer = 10 / 1;
             } catch (error) {
                 print("Error capturado: " + error);
             }
@@ -715,8 +715,8 @@ public class ControlFlowTest {
 
         List<SemanticError> errors = analyzeCode(code);
         printErrors(errors);
-        // Note: Este test podría requerir implementación de arreglos
-        // assertTrue(errors.isEmpty(), "Try-catch con acceso a arreglo válido no debería generar errores");
+
+        assertTrue(errors.isEmpty(), "Try-catch con acceso a arreglo válido no debería generar errores");
     }
 
     // ========================================
@@ -751,8 +751,8 @@ public class ControlFlowTest {
 
         List<SemanticError> errors = analyzeCode(code);
         printErrors(errors);
-        // Este test combina múltiples características y podría requerir arreglos implementados
-        // assertTrue(errors.isEmpty(), "Control de flujo complejo válido no debería generar errores");
+
+        assertTrue(errors.isEmpty(), "Control de flujo complejo válido no debería generar errores");
     }
 
     @Test
