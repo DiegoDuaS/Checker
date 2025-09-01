@@ -2,6 +2,9 @@ package com.fmd;
 import com.fmd.modules.SemanticError;
 import com.fmd.modules.Symbol;
 import org.antlr.v4.runtime.tree.ParseTree;
+import java.util.List;
+import java.util.ArrayList;
+
 
 public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     private final SemanticVisitor semanticVisitor;
@@ -121,12 +124,11 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     }
 
     // -------------------
-// Método recursivo para detectar 'new Clase(...)'
+// Verifica 'new Clase(...)' y tipos de parámetros usando getParams()
 // -------------------
     private void detectNewExpr(ParseTree node) {
         if (node instanceof CompiscriptParser.NewExprContext newCtx) {
             String claseNueva = newCtx.Identifier().getText();
-
             Symbol claseSym = semanticVisitor.getEntornoActual().obtener(claseNueva);
 
             if (claseSym == null || claseSym.getKind() != Symbol.Kind.CLASS) {
@@ -135,13 +137,11 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                         newCtx.start.getLine(), newCtx.start.getCharPositionInLine()
                 );
             } else {
-                // Buscar constructor en la clase o en la jerarquía
+                // Buscar constructor
                 Symbol constructorSym = buscarConstructor(claseSym);
-
                 int actualArgs = newCtx.arguments() != null ? newCtx.arguments().expression().size() : 0;
 
                 if (constructorSym == null) {
-                    // No se definió constructor → constructor vacío implícito
                     if (actualArgs > 0) {
                         semanticVisitor.agregarError(
                                 "Clase '" + claseNueva + "' no tiene constructor definido, no puede recibir argumentos",
@@ -157,6 +157,24 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                                         " argumentos, pero recibe " + actualArgs,
                                 newCtx.start.getLine(), newCtx.start.getCharPositionInLine()
                         );
+                    } else {
+                        // Validar tipos de argumentos usando getParams()
+                        List<Symbol> params = constructorSym.getParams();
+                        for (int i = 0; i < expectedArgs; i++) {
+                            Symbol paramSym = params.get(i);
+                            CompiscriptParser.ExpressionContext argExpr = newCtx.arguments().expression(i);
+                            String tipoArg = semanticVisitor.getExpressionType(argExpr);
+
+                            if (!tipoArg.equals(paramSym.getType()) && !"desconocido".equals(tipoArg)) {
+                                semanticVisitor.agregarError(
+                                        "Tipo del argumento " + (i + 1) + " de '" + claseNueva +
+                                                "' esperado: '" + paramSym.getType() +
+                                                "', recibido: '" + tipoArg + "'",
+                                        argExpr.start.getLine(),
+                                        argExpr.start.getCharPositionInLine()
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -167,6 +185,9 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             detectNewExpr(node.getChild(i));
         }
     }
+
+
+
 
     /**
      * Busca un constructor en la clase o en su cadena de herencia.
@@ -268,6 +289,11 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
     @Override
     public String visitIdentifierExpr(CompiscriptParser.IdentifierExprContext ctx) {
+        if (ctx.Identifier() == null) {
+            // Por ejemplo, puede ser un literal, o otra expresión
+            return visitChildren(ctx); // o manejarlo según corresponda
+        }
+
         String nombre = ctx.Identifier().getText();
         Symbol sym = semanticVisitor.getEntornoActual().obtener(nombre);
 
@@ -280,7 +306,6 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             return "ERROR";
         }
 
-        // Si la variable pertenece a una clase, debe accederse vía objeto (this o instancia)
         if (sym.getEnclosingClassName() != null) {
             semanticVisitor.agregarError(
                     "No se puede acceder al miembro '" + nombre + "' sin un objeto de tipo '"
@@ -428,14 +453,25 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
     @Override
     public String visitLeftHandSide(CompiscriptParser.LeftHandSideContext ctx) {
-        // Si tiene sufixOp que es CallExpr
-        for (CompiscriptParser.SuffixOpContext suffixOp : ctx.suffixOp()) {
-            if (suffixOp instanceof CompiscriptParser.CallExprContext) {
-                return semanticVisitor.getFunctionsVisitor().visitCallExpr((CompiscriptParser.CallExprContext) suffixOp);
+        if (ctx.suffixOp() != null) {
+            for (CompiscriptParser.SuffixOpContext suffixOp : ctx.suffixOp()) {
+                // Revisamos los hijos del suffixOp
+                if (suffixOp.getChildCount() > 0) {
+                    for (int i = 0; i < suffixOp.getChildCount(); i++) {
+                        ParseTree child = suffixOp.getChild(i);
+                        if (child instanceof CompiscriptParser.CallExprContext) {
+                            return semanticVisitor.getFunctionsVisitor().visitCallExpr((CompiscriptParser.CallExprContext) child);
+                        }
+                    }
+                }
             }
         }
+
+        // Si no hay CallExpr, seguimos visitando hijos
         return visitChildren(ctx);
     }
+
+
 
     // Maneja la creación de nuevas instancias
     @Override
@@ -517,4 +553,69 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         }
         return "desconocido";
     }
+
+    @Override
+    public String visitPropertyAssignExpr(CompiscriptParser.PropertyAssignExprContext ctx) {
+        // Izquierda: base y miembro
+        String baseName = ctx.leftHandSide().getText().split("\\.")[0];
+        String memberName = ctx.leftHandSide().getText().split("\\.")[1];
+
+        System.out.println("DEBUG >> PropertyAssignExpr: " + baseName + "." + memberName);
+
+        // Verificar que el objeto existe
+        Symbol baseSym = semanticVisitor.getEntornoActual().obtener(baseName);
+        if (baseSym == null) {
+            semanticVisitor.agregarError(
+                    "Objeto '" + baseName + "' no declarado",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
+            );
+            return "ERROR";
+        }
+
+        if (baseSym.getKind() != Symbol.Kind.VARIABLE) {
+            semanticVisitor.agregarError(
+                    "'" + baseName + "' no es un objeto",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
+            );
+            return "ERROR";
+        }
+
+        // Verificar que la clase tiene ese miembro
+        String classType = baseSym.getType();
+        Symbol classSym = semanticVisitor.getEntornoActual().obtener(classType);
+        if (classSym == null || classSym.getKind() != Symbol.Kind.CLASS) {
+            semanticVisitor.agregarError(
+                    "Clase '" + classType + "' no existe",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
+            );
+            return "ERROR";
+        }
+
+        Symbol memberSym = classSym.getMembers().get(memberName);
+        if (memberSym == null) {
+            semanticVisitor.agregarError(
+                    "Miembro '" + memberName + "' no existe en la clase '" + classType + "'",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
+            );
+            return "ERROR";
+        }
+
+        // Derecha: evaluar expresión sin llamar a visitPropertyAssignExpr recursivamente
+        String rightType = visit(ctx.assignmentExpr()); // esto está bien mientras ctx.assignmentExpr() no sea otro PropertyAssignExpr anidado directamente
+
+        // Validar tipos
+        if (!memberSym.getType().equals(rightType) && !"desconocido".equals(rightType)) {
+            semanticVisitor.agregarError(
+                    "Tipo de '" + memberName + "' (" + memberSym.getType() + ") no coincide con expresión (" + rightType + ")",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
+            );
+        } else {
+            memberSym.setInitialized(true);
+        }
+
+        return memberSym.getType();
+    }
+
+
+
 }
