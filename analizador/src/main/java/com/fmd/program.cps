@@ -85,13 +85,15 @@ class Cat {
 }
 
 this.name = "dog";
-let dog: Dog = new Dog("Rex");
+let dog: Dog = new Dog("Hugo");
 print(dog.speak());
 print(dog.sit());
 
+print(dog.name);
+
 
 let amigo: Cat = new Cat("Michi");
-print(amigo.speak());
+print(speak());
 
 
 // Object property access and array indexing

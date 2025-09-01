@@ -146,25 +146,6 @@ public class ClassesListener extends CompiscriptBaseListener {
             }
         }
 
-        // Validación de constructor
-        if (isConstructor) {
-            for (Symbol member : currentClass.getMembers().values()) {
-                if (member.getKind() == Symbol.Kind.VARIABLE && !member.isInitialized()) {
-                    boolean paramCompatible = funcSym.getParams().stream()
-                            .anyMatch(p -> p.getType().equals(member.getType()));
-
-                    if (!paramCompatible) {
-                        semanticVisitor.agregarError(
-                                "El miembro '" + member.getName() + "' no inicializado ni compatible con algún parámetro del constructor",
-                                ctx.start.getLine(),
-                                ctx.start.getCharPositionInLine()
-                        );
-                        hayError = true;
-                    }
-                }
-            }
-        }
-
         // 🔹 Paso 2: Recorrer cuerpo del constructor
         if (isConstructor && !hayError) {
             for (CompiscriptParser.StatementContext stmt : ctx.block().statement()) {

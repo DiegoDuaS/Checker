@@ -73,7 +73,7 @@ class AnalizadorController {
     public static String generarImagen(String treeString) {
         try {
             // Ejecuta un script Python que recibe el árbol y devuelve Base64
-            ProcessBuilder pb = new ProcessBuilder("python", "additions\\AstTreeGenerator.py");
+            ProcessBuilder pb = new ProcessBuilder("python", "analizador\\additions\\AstTreeGenerator.py");
             Process p = pb.start();
 
             // Mandar el árbol al script

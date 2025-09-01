@@ -115,48 +115,59 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         return actualReturnType;
     }
 
-    // Validación de argumentos en llamadas a funciones
     @Override
     public String visitCallExpr(CompiscriptParser.CallExprContext ctx) {
         // Obtener base y método
         String[] parts = getFunctionParts(ctx);
-        String baseName = parts[0];
-        String methodName = parts[1];
+        String baseName = parts[0];    // null o "unknown" si no hay objeto
+        String methodName = parts[1];  // nombre de la función o método
 
-        // Buscar base en el entorno
-        Symbol baseSym = semanticVisitor.getEntornoActual().obtener(baseName);
-        if (baseSym == null) {
-            semanticVisitor.agregarError("Función o variable '" + baseName + "' no está declarada",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
-            return "ERROR";
-        }
 
-        // Caso método de clase
-        if (methodName != null) {
-            if (baseSym.getKind() != Symbol.Kind.VARIABLE) {
-                semanticVisitor.agregarError("'" + baseName + "' no es variable para acceder a método",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+
+        // ============================
+        // CASO 1: objeto.funcion()
+        // ============================
+        if (baseName != null && methodName != null) {
+            Symbol baseSym = semanticVisitor.getEntornoActual().obtener(baseName);
+
+            if (baseSym == null) {
+                semanticVisitor.agregarError(
+                        "Variable u objeto '" + baseName + "' no declarado",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
                 return "ERROR";
             }
 
+
+            if (baseSym.getKind() != Symbol.Kind.VARIABLE) {
+                semanticVisitor.agregarError(
+                        "'" + baseName + "' no es un objeto para llamar métodos",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
+                return "ERROR";
+            }
+
+            // El objeto existe, obtenemos su clase
             String classType = baseSym.getType();
             Symbol classSym = semanticVisitor.getEntornoActual().obtener(classType);
 
+
             if (classSym == null || classSym.getKind() != Symbol.Kind.CLASS) {
-                semanticVisitor.agregarError("Clase '" + classType + "' no existe",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                semanticVisitor.agregarError(
+                        "Clase '" + classType + "' no existe",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
                 return "ERROR";
             }
 
-            // Buscar método recursivamente en clase y superclases
+            // Buscar el método en la clase y superclases
             Symbol methodSym = null;
             Symbol currentClassSym = classSym;
-
             while (currentClassSym != null && methodSym == null) {
                 methodSym = currentClassSym.getMembers().values().stream()
                         .filter(m -> m.getName().equals(methodName) && m.getKind() == Symbol.Kind.FUNCTION)
-                        .findFirst()
-                        .orElse(null);
+                        .findFirst().orElse(null);
+
 
                 if (methodSym == null && currentClassSym.getSuperClass() != null) {
                     currentClassSym = semanticVisitor.getEntornoActual().obtener(currentClassSym.getSuperClass());
@@ -166,43 +177,94 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             }
 
             if (methodSym == null) {
-                semanticVisitor.agregarError("Método '" + methodName + "' no existe en la clase '" + classType +
-                                "' ni en sus superclases",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                semanticVisitor.agregarError(
+                        "Método '" + methodName + "' no existe en la clase '" + classType + "' ni en sus superclases",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
                 return "ERROR";
             }
 
             // Validar argumentos
             int expectedArgs = methodSym.getParameterCount();
             int actualArgs = ctx.arguments() != null ? ctx.arguments().expression().size() : 0;
+
+
             if (expectedArgs != actualArgs) {
-                semanticVisitor.agregarError("Método '" + methodName + "' espera " + expectedArgs +
+                semanticVisitor.agregarError(
+                        "Método '" + methodName + "' espera " + expectedArgs +
                                 " argumentos, pero recibe " + actualArgs,
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
                 return "ERROR";
             }
 
             return methodSym.getType();
         }
 
-        // Caso función global
-        if (baseSym.getKind() == Symbol.Kind.FUNCTION) {
-            int expectedArgs = baseSym.getParameterCount();
-            int actualArgs = ctx.arguments() != null ? ctx.arguments().expression().size() : 0;
-            if (expectedArgs != actualArgs) {
-                semanticVisitor.agregarError("Función '" + baseSym.getName() + "' espera " + expectedArgs +
-                                " argumentos, pero recibe " + actualArgs,
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+        // ============================
+        // CASO 2: funcion()
+        // ============================
+        if (baseName == null && methodName != null) {
+            Symbol funcSym = semanticVisitor.getEntornoActual().obtener(methodName);
+
+
+            // 2. ¿Es método de alguna clase?
+            boolean metodoDeClase = false;
+            for (Symbol s : semanticVisitor.getEntornoActual().getAllSymbols().values()) {
+                if (s.getKind() == Symbol.Kind.CLASS) {
+                    for (Symbol m : s.getMembers().values()) {
+                        if (m.getKind() == Symbol.Kind.FUNCTION && m.getName().equals(methodName)) {
+                            metodoDeClase = true;
+                        }
+                    }
+                }
+            }
+
+            if (metodoDeClase) {
+                semanticVisitor.agregarError(
+                        "Método '" + methodName + "' no se puede llamar sin su clase",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
                 return "ERROR";
             }
-            return baseSym.getType();
+
+            // 1. ¿Es función global?
+            if (funcSym != null && funcSym.getKind() == Symbol.Kind.FUNCTION) {
+                int expectedArgs = funcSym.getParameterCount();
+                int actualArgs = ctx.arguments() != null ? ctx.arguments().expression().size() : 0;
+
+                if (expectedArgs != actualArgs) {
+                    semanticVisitor.agregarError(
+                            "Función '" + funcSym.getName() + "' espera " + expectedArgs +
+                                    " argumentos, pero recibe " + actualArgs,
+                            ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                    );
+                    return "ERROR";
+                }
+                return funcSym.getType();
+            }
+
+
+
+            // 3. ¿Es variable?
+            if (funcSym != null && funcSym.getKind() == Symbol.Kind.VARIABLE) {
+                semanticVisitor.agregarError(
+                        "La variable '" + methodName + "' no es una función",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
+                return "ERROR";
+            }
+
+            // 4. Si no existe en ningún lado
+            semanticVisitor.agregarError(
+                    "Función o método '" + methodName + "' no está definido",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
+            );
+            return "ERROR";
         }
 
-        semanticVisitor.agregarError("'" + baseName + "' no es función ni método de clase",
-                ctx.start.getLine(), ctx.start.getCharPositionInLine());
         return "ERROR";
     }
-
 
     // Método auxiliar para compatibilidad de tipos
     private boolean typesCompatible(String actualType, String expectedType) {
@@ -214,8 +276,11 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
 
 
     // Método auxiliar para obtener el nombre de la función
+    // Método auxiliar para obtener base y nombre de función
     private String[] getFunctionParts(CompiscriptParser.CallExprContext ctx) {
         ParseTree parent = ctx.getParent();
+
+        // Caso típico de objeto.metodo()
         while (parent != null) {
             if (parent instanceof CompiscriptParser.LeftHandSideContext) {
                 CompiscriptParser.LeftHandSideContext lhs = (CompiscriptParser.LeftHandSideContext) parent;
@@ -236,13 +301,21 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                         }
                     }
 
+                    // Si no hay suffix, significa que es una llamada directa a función global o de clase
+                    if (methodName == null) {
+                        methodName = baseName;
+                        baseName = null;
+                    }
+
                     return new String[]{baseName, methodName};
                 }
             }
             parent = parent.getParent();
         }
-        return new String[]{"unknown", null};
+
+        return new String[]{null, "unknown"};
     }
+
 
     // Método auxiliar para obtener tipo desde contexto
     private String getTypeFromContext(CompiscriptParser.TypeContext typeCtx) {
