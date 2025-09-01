@@ -23,6 +23,8 @@ public class Symbol {
     private String superClass;
     private String enclosingClassName;
     private Map<String, Symbol> members = new HashMap<>();
+    private boolean initialized = false;
+    private boolean constructor = false;
 
     public Symbol(String name, Kind kind, String type, ParserRuleContext declNode, int line, int column,
             boolean mutable) {
@@ -126,6 +128,18 @@ public class Symbol {
 
     public void addMember(Symbol s) {
         members.put(s.getName(), s);
+    }
+
+    public boolean isInitialized() { return initialized; }
+
+    public void setInitialized(boolean value) { initialized = value; }
+
+    public boolean isConstructor() {
+        return constructor;
+    }
+
+    public void setConstructor(boolean value) {
+        this.constructor = value;
     }
 
     @Override

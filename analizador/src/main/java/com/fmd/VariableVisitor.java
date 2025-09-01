@@ -1,6 +1,7 @@
 package com.fmd;
 
 import com.fmd.modules.Symbol;
+import org.antlr.v4.runtime.tree.ParseTree;
 
 public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     private final SemanticVisitor semanticVisitor;
@@ -65,44 +66,50 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         String nombre = ctx.Identifier().getText();
         String tipo = ctx.typeAnnotation() != null ? ctx.typeAnnotation().type().getText() : null;
 
-        // Verificar si estamos dentro de una clase
         Symbol currentClass = semanticVisitor.getCurrentClass();
+
+        // -------------------
+        // Verificar duplicados
+        // -------------------
         if (currentClass != null) {
             if (currentClass.getMembers().containsKey(nombre)) {
                 semanticVisitor.agregarError(
                         "Miembro '" + nombre + "' ya declarado en la clase '" + currentClass.getName() + "'",
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine());
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return tipo != null ? tipo : "desconocido";
             }
         } else {
             if (semanticVisitor.getEntornoActual().existeLocal(nombre)) {
                 semanticVisitor.agregarError(
                         "Variable '" + nombre + "' ya declarada en este scope",
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine());
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return tipo != null ? tipo : "desconocido";
             }
         }
 
-        // Inferir tipo si hay inicializador
+        // -------------------
+        // Inferir tipo desde inicializador
+        // -------------------
         if (ctx.initializer() != null && ctx.initializer().expression() != null) {
-            String tipoInicializador = semanticVisitor.getExpressionType(ctx.initializer().expression());
+            CompiscriptParser.ExpressionContext exprCtx = ctx.initializer().expression();
+            String tipoInicializador = semanticVisitor.getExpressionType(exprCtx);
+            // Recorrer el árbol recursivamente para detectar 'new Clase(...)'
+            detectNewExpr(exprCtx);
+
             if (tipo == null) {
                 tipo = tipoInicializador;
             } else if (!tipo.equals(tipoInicializador) && !"desconocido".equals(tipoInicializador)) {
                 semanticVisitor.agregarError(
                         "No se puede inicializar variable '" + nombre + "' de tipo '" + tipo +
                                 "' con expresión de tipo '" + tipoInicializador + "'",
-                        ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine());
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
             }
         }
 
         if (tipo == null) tipo = "desconocido";
 
-        Symbol sym = new Symbol(nombre, Symbol.Kind.VARIABLE, tipo, ctx, ctx.start.getLine(),
-                ctx.start.getCharPositionInLine(), true);
+        Symbol sym = new Symbol(nombre, Symbol.Kind.VARIABLE, tipo, ctx,
+                ctx.start.getLine(), ctx.start.getCharPositionInLine(), true);
 
         // Agregar al entorno o como miembro de clase
         if (currentClass != null) {
@@ -114,55 +121,179 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         return tipo;
     }
 
+    // -------------------
+// Método recursivo para detectar 'new Clase(...)'
+// -------------------
+    private void detectNewExpr(ParseTree node) {
+        if (node instanceof CompiscriptParser.NewExprContext newCtx) {
+            String claseNueva = newCtx.Identifier().getText();
+
+            Symbol claseSym = semanticVisitor.getEntornoActual().obtener(claseNueva);
+
+            if (claseSym == null || claseSym.getKind() != Symbol.Kind.CLASS) {
+                semanticVisitor.agregarError(
+                        "Clase '" + claseNueva + "' no existe",
+                        newCtx.start.getLine(), newCtx.start.getCharPositionInLine()
+                );
+            } else {
+                // Buscar constructor en la clase o en la jerarquía
+                Symbol constructorSym = buscarConstructor(claseSym);
+
+                int actualArgs = newCtx.arguments() != null ? newCtx.arguments().expression().size() : 0;
+
+                if (constructorSym == null) {
+                    // No se definió constructor → constructor vacío implícito
+                    if (actualArgs > 0) {
+                        semanticVisitor.agregarError(
+                                "Clase '" + claseNueva + "' no tiene constructor definido, no puede recibir argumentos",
+                                newCtx.start.getLine(), newCtx.start.getCharPositionInLine()
+                        );
+                    }
+                } else {
+                    int expectedArgs = constructorSym.getParameterCount();
+
+                    if (expectedArgs != actualArgs) {
+                        semanticVisitor.agregarError(
+                                "Constructor de '" + claseNueva + "' espera " + expectedArgs +
+                                        " argumentos, pero recibe " + actualArgs,
+                                newCtx.start.getLine(), newCtx.start.getCharPositionInLine()
+                        );
+                    }
+                }
+            }
+        }
+
+        // Recorrer hijos
+        for (int i = 0; i < node.getChildCount(); i++) {
+            detectNewExpr(node.getChild(i));
+        }
+    }
+
+    /**
+     * Busca un constructor en la clase o en su cadena de herencia.
+     */
+    private Symbol buscarConstructor(Symbol claseSym) {
+        Symbol constructorSym = null;
+        while (claseSym != null) {
+            for (Symbol miembro : claseSym.getMembers().values()) {
+                if (miembro.isConstructor()) {
+                    constructorSym = miembro;
+                    return constructorSym;
+                }
+            }
+
+            // Subir a la superclase
+            String superClassName = claseSym.getSuperClass();
+            if (superClassName != null) {
+                claseSym = semanticVisitor.getEntornoActual().obtener(superClassName);
+            } else {
+                claseSym = null;
+            }
+        }
+
+        return constructorSym;
+    }
+
+
     @Override
     public String visitAssignment(CompiscriptParser.AssignmentContext ctx) {
-        String nombreVar = ctx.Identifier().getText();
-        Symbol sym = semanticVisitor.getEntornoActual().obtener(nombreVar);
-
-        if (sym == null) {
-            semanticVisitor.agregarError("Variable '" + nombreVar + "' no declarada",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
-            return "desconocido";
+        Symbol sym;
+        String nombreVar;
+        if (ctx.getChild(0).getText().equals("this")) {
+            // caso: this.name = ...
+            nombreVar = ctx.getChild(0).getText() + "." + ctx.getChild(2).getText();
+        } else {
+            // variable normal
+            nombreVar = ctx.Identifier().getText(); // o ctx.getChild(0).getText()
         }
+        // Revisar si se está usando 'this'
+        if (nombreVar.startsWith("this.")) {
+            Symbol currentClass = semanticVisitor.getCurrentClass();
+            if (currentClass == null) {
+                semanticVisitor.agregarError(
+                        "Uso de 'this' fuera de una clase",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
+                return "ERROR";
+            }
+            String memberName = nombreVar.substring(5);
+            sym = currentClass.getMembers().get(memberName);
+            if (sym == null) {
+                semanticVisitor.agregarError(
+                        "Miembro '" + memberName + "' no existe en la clase '" + currentClass.getName() + "'",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
+                return "ERROR";
+            }
+        } else {
+            sym = semanticVisitor.getEntornoActual().obtener(nombreVar);
+            if (sym == null) {
+                semanticVisitor.agregarError(
+                        "Variable '" + nombreVar + "' no declarada",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
+                return "ERROR";
+            }
+        }
+
+        // Revisar mutabilidad
         if (!sym.isMutable()) {
-            semanticVisitor.agregarError("No se puede asignar a la constante '" + nombreVar + "'",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
-            return sym.getType();
+            semanticVisitor.agregarError(
+                    "No se puede asignar a la constante '" + nombreVar + "'",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
+            );
         }
 
-        String tipoExpr = visit(ctx.expression(0));
-        // Chequeo simple de igualdad de cadenas de tipo; aquí podrías añadir coerciones
-        if (!sym.getType().equals(tipoExpr) && !"desconocido".equals(tipoExpr)) {
+        // Obtener tipo de la expresión
+        String tipoExpr = semanticVisitor.getExpressionType(ctx.expression(0));
+
+        // Chequeo de tipos
+        if (!sym.getType().equals(tipoExpr) && !"desconocido".equals(tipoExpr) && !"null".equals(tipoExpr)) {
             semanticVisitor.agregarError(
-                    "No se puede asignar valor de tipo '" + tipoExpr + "' a variable '" + nombreVar + "' de tipo '"
-                            + sym.getType() + "'",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                    "No se puede asignar valor de tipo '" + tipoExpr + "' a variable '" + nombreVar + "' de tipo '" + sym.getType() + "'",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
+            );
         }
-        return tipoExpr;
+
+        // Marcar miembro como inicializado
+        if (nombreVar.startsWith("this.")) {
+            sym.setInitialized(true);
+        }
+
+        return sym.getType();
     }
+
+
+
 
     @Override
     public String visitIdentifierExpr(CompiscriptParser.IdentifierExprContext ctx) {
         String nombre = ctx.Identifier().getText();
         Symbol sym = semanticVisitor.getEntornoActual().obtener(nombre);
+
         if (sym == null) {
             semanticVisitor.agregarError(
                     "Variable '" + nombre + "' no declarada en este scope",
                     ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine());
+                    ctx.start.getCharPositionInLine()
+            );
             return "ERROR";
         }
 
+        // Si la variable pertenece a una clase, debe accederse vía objeto (this o instancia)
         if (sym.getEnclosingClassName() != null) {
             semanticVisitor.agregarError(
-                    "No se puede acceder al miembro '" + nombre + "' sin un objeto de tipo '" + sym.getEnclosingClassName() + "'",
+                    "No se puede acceder al miembro '" + nombre + "' sin un objeto de tipo '"
+                            + sym.getEnclosingClassName() + "'",
                     ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine());
+                    ctx.start.getCharPositionInLine()
+            );
             return "ERROR";
         }
 
         return sym.getType();
     }
+
     /**
      * Maneja operaciones aditivas: + y -
      * Valida que ambos operandos sean integer

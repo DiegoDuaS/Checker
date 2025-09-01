@@ -126,12 +126,12 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         // Buscar base en el entorno
         Symbol baseSym = semanticVisitor.getEntornoActual().obtener(baseName);
         if (baseSym == null) {
-            semanticVisitor.agregarError("Función '" + baseName + "' no está declarada",
+            semanticVisitor.agregarError("Función o variable '" + baseName + "' no está declarada",
                     ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
-        // Si es un método de clase
+        // Caso método de clase
         if (methodName != null) {
             if (baseSym.getKind() != Symbol.Kind.VARIABLE) {
                 semanticVisitor.agregarError("'" + baseName + "' no es variable para acceder a método",
@@ -148,14 +148,26 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                 return "ERROR";
             }
 
-            // Buscar método
-            Symbol methodSym = classSym.getMembers().values().stream()
-                    .filter(m -> m.getName().equals(methodName) && m.getKind() == Symbol.Kind.FUNCTION)
-                    .findFirst()
-                    .orElse(null);
+            // Buscar método recursivamente en clase y superclases
+            Symbol methodSym = null;
+            Symbol currentClassSym = classSym;
+
+            while (currentClassSym != null && methodSym == null) {
+                methodSym = currentClassSym.getMembers().values().stream()
+                        .filter(m -> m.getName().equals(methodName) && m.getKind() == Symbol.Kind.FUNCTION)
+                        .findFirst()
+                        .orElse(null);
+
+                if (methodSym == null && currentClassSym.getSuperClass() != null) {
+                    currentClassSym = semanticVisitor.getEntornoActual().obtener(currentClassSym.getSuperClass());
+                } else {
+                    currentClassSym = null;
+                }
+            }
 
             if (methodSym == null) {
-                semanticVisitor.agregarError("Método '" + methodName + "' no existe en la clase '" + classType + "'",
+                semanticVisitor.agregarError("Método '" + methodName + "' no existe en la clase '" + classType +
+                                "' ni en sus superclases",
                         ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
@@ -190,6 +202,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                 ctx.start.getLine(), ctx.start.getCharPositionInLine());
         return "ERROR";
     }
+
 
     // Método auxiliar para compatibilidad de tipos
     private boolean typesCompatible(String actualType, String expectedType) {
