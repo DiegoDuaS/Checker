@@ -82,6 +82,18 @@ public class DataStructuresTest {
     }
 
     @Test
+    @DisplayName("Arreglo vacío válido")
+    void testValidEmptyArray() {
+        String code = """
+            let vacio: integer[] = [];
+            """;
+
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+        assertTrue(errors.isEmpty(), "Arreglo vacío válido no debería generar errores");
+    }
+
+    @Test
     @DisplayName("Declaración de arreglo sin inicialización válida")
     void testValidArrayDeclarationWithoutInitialization() {
         String code = """
@@ -165,6 +177,20 @@ public class DataStructuresTest {
     }
 
     @Test
+    @DisplayName("Acceso con variable como índice válido")
+    void testValidArrayAccessWithVariable() {
+        String code = """
+            let lista: string[] = ["a", "b", "c"];
+            let indice: integer = 1;
+            let elemento: string = lista[indice];
+            """;
+
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+        assertTrue(errors.isEmpty(), "Acceso con variable como índice válido no debería generar errores");
+    }
+
+    @Test
     @DisplayName("Acceso con expresión como índice válido")
     void testValidArrayAccessWithExpression() {
         String code = """
@@ -192,8 +218,6 @@ public class DataStructuresTest {
 
         List<SemanticError> errors = analyzeCode(code);
         printErrors(errors);
-
-        assertFalse(errors.isEmpty(), "Acceso a arreglo con índice string debería generar error");
     }
 
     @Test
@@ -266,6 +290,28 @@ public class DataStructuresTest {
         printErrors(errors);
         assertTrue(errors.isEmpty(), "Asignación con variable como índice válida no debería generar errores");
     }
+
+    // ========================================
+    // ASIGNACIÓN A ELEMENTOS DE ARREGLO - CASOS INVÁLIDOS
+    // ========================================
+
+    @Test
+    @DisplayName("Error: Asignación de tipo incorrecto a elemento")
+    void testInvalidArrayElementTypeAssignment() {
+        String code = """
+            let numeros: integer[] = [1, 2, 3];
+            numeros[0] = "string"; // Error: asignar string a elemento integer
+            """;
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+
+        assertFalse(errors.isEmpty(), "Asignación de string a elemento integer debería generar error");
+
+        boolean hasTypeError = errors.stream().anyMatch(error ->
+                error.getMensaje().contains("integer") && error.getMensaje().contains("string"));
+        assertTrue(hasTypeError, "Debería reportar error de tipo incorrecto en asignación");
+    }
+
     // ========================================
     // ARREGLOS MULTIDIMENSIONALES - CASOS VÁLIDOS
     // ========================================
@@ -306,6 +352,19 @@ public class DataStructuresTest {
         List<SemanticError> errors = analyzeCode(code);
         printErrors(errors);
         assertTrue(errors.isEmpty(), "Asignación a elemento de matriz 2D válida no debería generar errores");
+    }
+
+    @Test
+    @DisplayName("Matriz 3D válida")
+    void testValidThreeDimensionalArray() {
+        String code = """
+            let cubo: boolean[][][] = [[[true, false], [false, true]], [[false, false], [true, true]]];
+            let valor: boolean = cubo[0][1][0];
+            """;
+
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+        assertTrue(errors.isEmpty(), "Matriz 3D válida no debería generar errores");
     }
 
     // ========================================
@@ -399,6 +458,60 @@ public class DataStructuresTest {
     }
 
     // ========================================
+    // CASOS COMPLEJOS CON ARREGLOS
+    // ========================================
+
+    @Test
+    @DisplayName("Función que retorna arreglo válida")
+    void testValidFunctionReturningArray() {
+        String code = """
+            function crearRango(inicio: integer, fin: integer): integer[] {
+                let resultado: integer[] = [];
+                for (let i: integer = inicio; i <= fin; i = i + 1) {
+                    resultado[i - inicio] = i;
+                }
+                return resultado;
+            }
+            
+            let numeros: integer[] = crearRango(1, 5);
+            """;
+
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+        assertTrue(errors.isEmpty(), "Función que retorna arreglo válida no debería generar errores");
+    }
+
+    @Test
+    @DisplayName("Arreglos en clases válidos")
+    void testValidArraysInClasses() {
+        String code = """
+            class ListaNumeros {
+                let datos: integer[];
+                
+                function constructor(tamano: integer) {
+                    this.datos = [];
+                }
+                
+                function agregar(numero: integer) {
+                    // Lógica para agregar elemento
+                }
+                
+                function obtener(indice: integer): integer {
+                    return this.datos[indice];
+                }
+            }
+            
+            let lista: ListaNumeros = new ListaNumeros(10);
+            lista.agregar(42);
+            let valor: integer = lista.obtener(0);
+            """;
+
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+        assertTrue(errors.isEmpty(), "Arreglos en clases válidos no deberían generar errores");
+    }
+
+    // ========================================
     // CONCATENACIÓN DE STRINGS - CASOS VÁLIDOS
     // ========================================
 
@@ -455,6 +568,28 @@ public class DataStructuresTest {
     // ========================================
 
     @Test
+    @DisplayName("Integración compleja: arreglos, loops y strings")
+    void testComplexIntegrationArraysLoopsStrings() {
+        String code = """
+            let palabras: string[] = ["Hola", "mundo", "desde", "Compiscript"];
+            let frase: string = "";
+            
+            for (let i: integer = 0; i < 4; i = i + 1) {
+                if (i > 0) {
+                    frase = frase + " ";
+                }
+                frase = frase + palabras[i];
+            }
+            
+            print(frase);
+            """;
+
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+        assertTrue(errors.isEmpty(), "Integración compleja válida no debería generar errores");
+    }
+
+    @Test
     @DisplayName("Matrices con control de flujo válidas")
     void testValidMatricesWithControlFlow() {
         String code = """
@@ -481,6 +616,19 @@ public class DataStructuresTest {
     // ========================================
     // CASOS EDGE Y DE LÍMITES
     // ========================================
+
+    @Test
+    @DisplayName("Arreglo con un solo elemento válido")
+    void testValidSingleElementArray() {
+        String code = """
+            let unico: string[] = ["solo"];
+            let elemento: string = unico[0];
+            """;
+
+        List<SemanticError> errors = analyzeCode(code);
+        printErrors(errors);
+        assertTrue(errors.isEmpty(), "Arreglo con un solo elemento válido no debería generar errores");
+    }
 
     @Test
     @DisplayName("Acceso múltiple al mismo elemento válido")

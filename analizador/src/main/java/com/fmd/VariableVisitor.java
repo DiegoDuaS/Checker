@@ -103,10 +103,12 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             if (tipo == null) {
                 tipo = tipoInicializador;
             } else if (!tipo.equals(tipoInicializador) && !"desconocido".equals(tipoInicializador)) {
-                semanticVisitor.agregarError(
-                        "No se puede inicializar variable '" + nombre + "' de tipo '" + tipo +
-                                "' con expresión de tipo '" + tipoInicializador + "'",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                if (!(tipo.contains("[") && tipo.contains("]") && tipoInicializador.equals("array[]"))){
+                    semanticVisitor.agregarError(
+                            "No se puede inicializar variable '" + nombre + "' de tipo '" + tipo +
+                                    "' con expresión de tipo '" + tipoInicializador + "'",
+                            ctx.start.getLine(), ctx.start.getCharPositionInLine());
+                }
             }
         }
 
@@ -545,8 +547,27 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                         if (!type_expr.matches("integer")) {
                             semanticVisitor.agregarError("No se puede accesar a arreglo con tipo: " + type_expr,
                                     suffixOp.start.getLine(), suffixOp.start.getCharPositionInLine());
+                        } else {
+                            String[] partes_original = currentType.split("\\[");
+
+                            String posible_indice = ((CompiscriptParser.IndexExprContext) suffixOp).expression().getText();
+                            try {
+                                int indice = Integer.parseInt(posible_indice);
+
+                                if(partes_original[1].split("]").length>0){ // si el array tiene tamaño establecido
+                                    int array_size = Integer.parseInt(partes_original[1].split("]")[0]);
+
+                                    if (!(indice < array_size - 1)) {
+                                        semanticVisitor.agregarError("Indice incorrecto" + indice + "para el array de tamaño " + array_size,
+                                                suffixOp.start.getLine(), suffixOp.start.getCharPositionInLine());
+                                    }
+                                }
+                            } catch (NumberFormatException ignored) {}
+
+                            currentType = partes_original[0];
                         }
-                        return type_expr;
+
+                        return currentType;
                     }
                     // Es acceso a array - ejemplo: arr[0]
                     if (!currentType.endsWith("[]")) {
@@ -597,7 +618,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             return "this"; // O el tipo de la clase actual si estás dentro de una
         }
 
-        return "OBJECT"; // Fallback
+        return "String"; // Fallback
     }
 
     // Maneja la creación de nuevas instancias
@@ -704,6 +725,21 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         return "desconocido";
     }
 
+    public String visitAssignExpr(CompiscriptParser.AssignExprContext ctx) {
+        String lhs_type = visit(ctx.lhs);
+        String rhs_type = visit(ctx.assignmentExpr());
+
+        if (!lhs_type.equals(rhs_type)) {
+            if (!(ctx.lhs.getText().contains("[") && rhs_type.equals("array[]"))){
+                semanticVisitor.agregarError(
+                        "No se puede inicializar variable '" + ctx.lhs.getText() + "' de tipo '" + lhs_type +
+                                "' con expresión de tipo '" + rhs_type + "'",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
+            }
+        }
+        return lhs_type;
+    }
+
     @Override
     public String visitPropertyAssignExpr(CompiscriptParser.PropertyAssignExprContext ctx) {
         // Izquierda: base y miembro
@@ -763,7 +799,5 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
         return memberSym.getType();
     }
-
-
 
 }

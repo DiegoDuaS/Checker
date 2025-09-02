@@ -121,6 +121,7 @@ public class ClassesListener extends CompiscriptBaseListener {
 
     @Override
     public void enterFunctionDeclaration(CompiscriptParser.FunctionDeclarationContext ctx) {
+        semanticVisitor.entrarScope();
         String funcName = ctx.Identifier().getText();
         boolean hayError = false;
 
@@ -173,39 +174,56 @@ public class ClassesListener extends CompiscriptBaseListener {
 
                         String memberName = left.substring(5);
                         Symbol memberSym = currentClass.getMembers().get(memberName);
+
+                        if (memberSym == null) {
+                            Symbol superclass = semanticVisitor.getEntornoActual().obtener(currentClass.getSuperClass());
+                            if (superclass != null) {
+                                memberSym = superclass.getMembers().get(memberName);
+
+                                if (memberSym == null) {
+                                    semanticVisitor.agregarError(
+                                            "Miembro '" + memberName + "' no existe en la clase",
+                                            assignCtx.start.getLine(),
+                                            assignCtx.start.getCharPositionInLine()
+                                    );
+                                    return;
+                                }
+                            }
+                        }
+
+                        String rightExprText = assignCtx.expression(1).getText();
                         Symbol paramSym = funcSym.getParams().stream()
-                                .filter(p -> p.getName().equals(right))
+                                .filter(p -> p.getName().equals(rightExprText))
                                 .findFirst()
                                 .orElse(null);
 
-                        if (memberSym == null) {
-                            semanticVisitor.agregarError(
-                                    "Miembro '" + memberName + "' no existe en la clase",
-                                    assignCtx.start.getLine(),
-                                    assignCtx.start.getCharPositionInLine()
-                            );
-                            continue;
-                        }
-
-                        if (paramSym == null) {
-                            semanticVisitor.agregarError(
-                                    "Asignación inválida: '" + right + "' no es parámetro del constructor",
-                                    assignCtx.start.getLine(),
-                                    assignCtx.start.getCharPositionInLine()
-                            );
-                            continue;
-                        }
-
-                        // Verificar tipo
-                        if (!memberSym.getType().equals(paramSym.getType()) && !"desconocido".equals(paramSym.getType())) {
-                            semanticVisitor.agregarError(
-                                    "Tipo del parámetro '" + right + "' (" + paramSym.getType() +
-                                            ") no coincide con tipo del miembro '" + memberName + "' (" + memberSym.getType() + ")",
-                                    assignCtx.start.getLine(),
-                                    assignCtx.start.getCharPositionInLine()
-                            );
-                        } else {
-                            memberSym.setInitialized(true);
+                        String tipoDerecha = semanticVisitor.getVariableVisitor().visit(assignCtx.expression(1)); // obtener tipo de la expresión
+                        if (paramSym != null) {
+                            // Caso original: asignación desde parámetro
+                            if (!memberSym.getType().equals(paramSym.getType()) && !"desconocido".equals(paramSym.getType())) {
+                                semanticVisitor.agregarError(
+                                        "Tipo del parámetro '" + rightExprText + "' (" + paramSym.getType() +
+                                                ") no coincide con tipo del miembro '" + memberName + "' (" + memberSym.getType() + ")",
+                                        assignCtx.start.getLine(),
+                                        assignCtx.start.getCharPositionInLine()
+                                );
+                            } else {
+                                memberSym.setInitialized(true);
+                            }
+                        } else {// asignación desde literal / otra expresión
+                            if (memberSym.getType().contains("[") && memberSym.getType().contains("]") && tipoDerecha.equals("array[]")){
+                                memberSym.setInitialized(true);
+                            }
+                            else if (!memberSym.getType().equals(tipoDerecha) && !"desconocido".equals(tipoDerecha)) {
+                                semanticVisitor.agregarError(
+                                        "Tipo de la expresión '" + rightExprText + "' (" + tipoDerecha +
+                                                ") no coincide con tipo del miembro '" + memberName + "' (" + memberSym.getType() + ")",
+                                        assignCtx.start.getLine(),
+                                        assignCtx.start.getCharPositionInLine()
+                                );
+                            } else {
+                                memberSym.setInitialized(true);
+                            }
                         }
 
                     } else {
@@ -307,6 +325,7 @@ public class ClassesListener extends CompiscriptBaseListener {
         }
 
         semanticVisitor.getEntornoActual().agregar(constSym);
+        semanticVisitor.salirScope();
     }
 
 

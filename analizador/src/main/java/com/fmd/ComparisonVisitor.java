@@ -144,4 +144,10 @@ public class ComparisonVisitor extends CompiscriptBaseVisitor<String> {
     public String visitLeftHandSide(CompiscriptParser.LeftHandSideContext ctx) {
         return semanticVisitor.getVariableVisitor().visitLeftHandSide(ctx);
     }
+
+    @Override
+    public String visitAssignExpr(CompiscriptParser.AssignExprContext ctx) {
+        return semanticVisitor.getVariableVisitor().visitAssignExpr(ctx);
+    }
+
 }

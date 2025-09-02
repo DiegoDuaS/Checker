@@ -401,7 +401,8 @@ public class ControlFlowTest {
         List<String> expectedMessages = List.of(
                 "No se puede inicializar variable 'i' de tipo 'int' con expresión de tipo 'string'",
                 "No se pueden comparar tipos incompatibles: 'int' != 'string'",
-                "Operación '+' no válida entre tipos: 'int' y 'string'"
+                "Operación '+' no válida entre tipos: 'int' y 'string'",
+                "No se puede inicializar variable 'i' de tipo 'int' con expresión de tipo 'desconocido'"
         );
 
         for (String msg : expectedMessages) {
