@@ -19,6 +19,8 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     private Symbol lastSymbol;
     private Symbol currentClass;
     private boolean dentroDeContextoPrint = false;
+    private int loopDepth = 0;
+    private int switchDepth = 0;
 
 
     private final VariableVisitor variableVisitor = new VariableVisitor(this);
@@ -128,6 +130,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
 
     @Override
     public Void visitWhileStatement(CompiscriptParser.WhileStatementContext ctx) {
+        loopDepth++;
         if (ctx.expression() != null) {
             String tipoCond = comparisonVisitor.visit(ctx.expression());
             if (!"boolean".equals(tipoCond)) {
@@ -138,6 +141,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
             }
         }
         visit(ctx.block());
+        loopDepth--;
         return null;
     }
 
@@ -219,22 +223,19 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
 
     @Override
     public Void visitForStatement(CompiscriptParser.ForStatementContext ctx) {
-        System.out.println("DEBUG >> visitForStatement()");
+        loopDepth++;
         entrarScope();
 
         // Inicialización: puede ser declaración o asignación
         if (ctx.variableDeclaration() != null) {
-            System.out.println("DEBUG >> For: declarando variable");
             variableVisitor.visitVariableDeclaration(ctx.variableDeclaration());
         } else if (ctx.assignment() != null) {
-            System.out.println("DEBUG >> For: asignación inicial");
             variableVisitor.visitAssignment(ctx.assignment());
         }
 
         // Condición
         if (ctx.expression(0) != null) {
             String tipoCond = comparisonVisitor.visit(ctx.expression(0));
-            System.out.println("DEBUG >> For: tipo condición = " + tipoCond);
             if (!"boolean".equals(tipoCond)) {
                 agregarError(
                         "Condición del for debe ser boolean, encontrada: " + tipoCond,
@@ -246,21 +247,20 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
 
         // Incremento (solo evaluar tipo)
         if (ctx.expression(1) != null) {
-            System.out.println("DEBUG >> For: evaluando incremento");
             variableVisitor.visit(ctx.expression(1));
         }
 
         // Bloque del for
-        System.out.println("DEBUG >> For: visitando bloque");
         visit(ctx.block());
 
         salirScope();
-        System.out.println("DEBUG >> For: saliendo de scope");
+        loopDepth--;
         return null;
     }
 
     @Override
     public Void visitForeachStatement(CompiscriptParser.ForeachStatementContext ctx) {
+        loopDepth++;
         entrarScope();
 
         String iterName = ctx.Identifier().getText();
@@ -292,14 +292,13 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
         visit(ctx.block());
 
         salirScope();
+        loopDepth--;
         return null;
     }
 
     @Override
     public Void visitSwitchStatement(CompiscriptParser.SwitchStatementContext ctx) {
-        System.out.println("DEBUG >> visitSwitchStatement()");
         String switchType = variableVisitor.visit(ctx.expression());
-        System.out.println("DEBUG >> Tipo del switch: " + switchType);
 
         for (CompiscriptParser.SwitchCaseContext caseCtx : ctx.switchCase()) {
             visitSwitchCase(caseCtx, switchType);
@@ -313,7 +312,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     }
 
     public Void visitSwitchCase(CompiscriptParser.SwitchCaseContext ctx, String switchType) {
-        System.out.println("DEBUG >> visitSwitchCase()");
+
         String caseType = variableVisitor.visit(ctx.expression());
         if (!switchType.equals(caseType)) {
             agregarError(
@@ -322,25 +321,61 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
                     ctx.start.getCharPositionInLine()
             );
         }
-
+        switchDepth++;
         // Visitar statements del case
         for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
             visit(stmt);
         }
-
+        switchDepth--;
         return null;
     }
 
-    public Void visitDefaultCase(CompiscriptParser.DefaultCaseContext ctx) {
-        System.out.println("DEBUG >> visitDefaultCase()");
+    public Void visitDefaultCase(CompiscriptParser.DefaultCaseContext ctx) {switchDepth++;
         for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
             visit(stmt);
+        }
+        switchDepth--;
+        return null;
+    }
+
+    @Override
+    public Void visitDoWhileStatement(CompiscriptParser.DoWhileStatementContext ctx) {
+        loopDepth++;
+        // Ejecutar bloque
+        visit(ctx.block());
+
+        // Evaluar condición
+        if (ctx.expression() != null) {
+            String tipoCond = comparisonVisitor.visit(ctx.expression());
+            if (!"boolean".equals(tipoCond)) {
+                agregarError(
+                        "Condición del do-while debe ser boolean, encontrada: " + tipoCond,
+                        ctx.start.getLine(),
+                        ctx.start.getCharPositionInLine()
+                );
+            }
+        }
+        loopDepth--;
+        return null;
+    }
+
+    // break statement
+    @Override
+    public Void visitBreakStatement(CompiscriptParser.BreakStatementContext ctx) {
+        if (loopDepth == 0 && switchDepth == 0) {
+            agregarError("'break' fuera de un ciclo o switch", ctx.start.getLine(), ctx.start.getCharPositionInLine());
         }
         return null;
     }
 
-
-
+    // continue statement
+    @Override
+    public Void visitContinueStatement(CompiscriptParser.ContinueStatementContext ctx) {
+        if (loopDepth == 0) {
+            agregarError("'continue' fuera de un ciclo", ctx.start.getLine(), ctx.start.getCharPositionInLine());
+        }
+        return null;
+    }
 
 
     @Override
