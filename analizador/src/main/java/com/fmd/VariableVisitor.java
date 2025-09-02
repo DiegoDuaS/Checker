@@ -495,6 +495,28 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                 return "string";
             }
         }
+        // --- Caso: array literal ---
+        if (ctx.arrayLiteral() != null) {
+            CompiscriptParser.ArrayLiteralContext arr = ctx.arrayLiteral();
+
+            // Si el array está vacío: tipo indefinido pero lo marcamos como array
+            if (arr.expression().isEmpty()) {
+                return "array[]";
+            }
+
+            // Tomamos el tipo del primer elemento
+            String firstType = visit(arr.expression(0));
+
+            // Verificamos consistencia de tipos
+            for (int i = 1; i < arr.expression().size(); i++) {
+                String elemType = visit(arr.expression(i));
+                if (!firstType.equals(elemType)) {
+                    return "mixed[]";
+                }
+            }
+
+            return firstType + "[]";
+        }
         String texto = ctx.getText();
         if ("true".equals(texto) || "false".equals(texto)) {
             return "boolean";
@@ -509,7 +531,6 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     public String visitLeftHandSide(CompiscriptParser.LeftHandSideContext ctx) {
         // Procesar cada suffixOp en orden
         String currentType = visitPrimaryAtom(ctx.primaryAtom());
-
         if (ctx.suffixOp() != null) {
             for (int i = 0; i < ctx.suffixOp().size(); i++) {
                 CompiscriptParser.SuffixOpContext suffixOp = ctx.suffixOp().get(i);
@@ -519,11 +540,16 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                     currentType = semanticVisitor.getFunctionsVisitor().visitCallExpr(callCtx);
 
                 } else if (suffixOp instanceof CompiscriptParser.IndexExprContext) {
+                    if (currentType.contains("[") && currentType.endsWith("]")) {
+                        String type_expr = visit(((CompiscriptParser.IndexExprContext) suffixOp).expression());
+                        if (!type_expr.matches("integer")) {
+                            semanticVisitor.agregarError("No se puede accesar a arreglo con tipo: " + type_expr,
+                                    suffixOp.start.getLine(), suffixOp.start.getCharPositionInLine());
+                        }
+                        return type_expr;
+                    }
                     // Es acceso a array - ejemplo: arr[0]
-                    if (currentType.endsWith("[]")) {
-                        // Remover una dimensión del array
-                        currentType = currentType.substring(0, currentType.length() - 2);
-                    } else {
+                    if (!currentType.endsWith("[]")) {
                         semanticVisitor.agregarError("Intento de indexar tipo no-array: " + currentType,
                                 suffixOp.start.getLine(), suffixOp.start.getCharPositionInLine());
                         currentType = "ERROR";
@@ -683,8 +709,6 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         // Izquierda: base y miembro
         String baseName = ctx.leftHandSide().getText();
         String memberName = ctx.Identifier().getText();
-
-        System.out.println("DEBUG >> PropertyAssignExpr: " + baseName + "." + memberName);
 
         // Verificar que el objeto existe
         Symbol baseSym = semanticVisitor.getEntornoActual().obtener(baseName);
