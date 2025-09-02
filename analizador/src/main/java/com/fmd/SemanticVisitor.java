@@ -533,4 +533,3 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     }
 
 }
-
