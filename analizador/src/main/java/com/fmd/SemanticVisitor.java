@@ -45,13 +45,25 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     public static class Entorno {
         private final Map<String, Symbol> symbols = new HashMap<>();
         private final Entorno padre;
+        private final List<Entorno> hijos = new ArrayList<>(); // <- hijos para scopes anidados
 
         public Entorno(Entorno padre) {
             this.padre = padre;
+            if (padre != null) {
+                padre.agregarHijo(this); // agregar este entorno al padre
+            }
         }
 
         public Entorno getPadre() {
             return padre;
+        }
+
+        public List<Entorno> getHijos() {
+            return hijos;
+        }
+
+        private void agregarHijo(Entorno hijo) {
+            hijos.add(hijo);
         }
 
         public boolean existeLocal(String nombre) {
@@ -89,7 +101,17 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
             result.putAll(this.symbols);
             return result;
         }
+
+        /** imprime recursivamente los símbolos por scope */
+        public void imprimirScopes(String prefijo) {
+            System.out.println(prefijo + "Scope (symbols: " + symbols.size() + ")");
+            symbols.values().forEach(sym -> System.out.println(prefijo + "  " + sym));
+            for (Entorno hijo : hijos) {
+                hijo.imprimirScopes(prefijo + "    "); // recursión con sangría
+            }
+        }
     }
+
 
     @Override
     public Void visitProgram(CompiscriptParser.ProgramContext ctx) {

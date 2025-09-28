@@ -22,40 +22,39 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
     @Override
     public String visitFunctionDeclaration(CompiscriptParser.FunctionDeclarationContext ctx) {
         String functionName = ctx.Identifier().getText();
+        System.out.println("Entrando a función: " + functionName);
 
-        // Reconocer si la función ya fue declarada en el ámbito actual
         if (semanticVisitor.getEntornoActual().existeLocal(functionName)) {
+            System.out.println("⚠ Función duplicada: " + functionName);
             semanticVisitor.agregarError("Función '" + functionName + "' ya fue declarada en este ámbito",
                     ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
         String tipo = ctx.type() != null ? ctx.type().getText() : "void";
+        Symbol function = new Symbol(functionName, Symbol.Kind.FUNCTION, tipo, ctx,
+                ctx.start.getLine(), ctx.start.getCharPositionInLine(), false);
 
-        // Crear función
-        Symbol function = new Symbol(functionName, Symbol.Kind.FUNCTION, tipo, ctx, ctx.start.getLine(),
-                ctx.start.getCharPositionInLine(), false);
-
-        // Si estamos dentro de otra función, es una función anidada
         if (currentFunction != null) {
+            System.out.println("Función anidada detectada dentro de: " + currentFunction.getName());
             function.setEnclosingFunctionName(currentFunction.getName());
             function.setNested(true);
         }
 
-        // Agregar función ANTES de procesar el cuerpo (para recursión)
         semanticVisitor.getEntornoActual().agregar(function);
+        System.out.println("Función agregada al scope actual: " + functionName);
 
-        // Nueva tabla para parámetros y variables locales
         semanticVisitor.entrarScope();
+        System.out.println("SE ENTRO A NUEVO SCOPE para función: " + functionName);
         Symbol previousFunction = currentFunction;
         currentFunction = function;
 
-        // Procesar parámetros
         if (ctx.parameters() != null) {
             for (CompiscriptParser.ParameterContext param : ctx.parameters().parameter()) {
                 String paramName = param.Identifier().getText();
                 String paramType = param.type() != null ? getTypeFromContext(param.type()) : "OBJECT";
 
+                System.out.println("Parametro agregado: " + paramName + " de tipo " + paramType);
                 Symbol newParameter = new Symbol(paramName, Symbol.Kind.VARIABLE, paramType, param,
                         param.start.getLine(), param.start.getCharPositionInLine(), false);
                 function.addParameter(newParameter);
@@ -63,29 +62,29 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             }
         }
 
-        // Analizar variables capturadas si es función anidada
         if (function.isNested()) {
             Set<String> capturedVars = findCapturedVariables(ctx.block());
             function.setCapturedVariables(capturedVars);
+            System.out.println("Variables capturadas en función: " + capturedVars);
 
-            // Validar que las variables capturadas existen en ámbitos externos
             for (String varName : capturedVars) {
                 if (!semanticVisitor.getEntornoActual().getPadre().existeGlobal(varName)) {
+                    System.out.println("⚠ Variable capturada no encontrada en scope externo: " + varName);
                     semanticVisitor.agregarError("Variable capturada '" + varName +
                             "' no existe en ámbitos externos", ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 }
             }
         }
 
-        // Procesar cuerpo (aquí puede haber llamadas recursivas)
         semanticVisitor.visit(ctx.block());
 
-        // Restaurar contexto anterior
         currentFunction = previousFunction;
         semanticVisitor.salirScope();
+        System.out.println("SE SALIO DEL SCOPE de la función: " + functionName);
 
         return tipo;
     }
+
 
     // Validación de tipo de retorno
     @Override
