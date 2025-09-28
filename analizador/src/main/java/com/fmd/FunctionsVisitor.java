@@ -207,27 +207,6 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         if (baseName == null && methodName != null) {
             Symbol funcSym = semanticVisitor.getEntornoActual().obtener(methodName);
 
-
-            // 2. ¿Es método de alguna clase?
-            boolean metodoDeClase = false;
-            for (Symbol s : semanticVisitor.getEntornoActual().getAllSymbols().values()) {
-                if (s.getKind() == Symbol.Kind.CLASS) {
-                    for (Symbol m : s.getMembers().values()) {
-                        if (m.getKind() == Symbol.Kind.FUNCTION && m.getName().equals(methodName)) {
-                            metodoDeClase = true;
-                        }
-                    }
-                }
-            }
-
-            if (metodoDeClase) {
-                semanticVisitor.agregarError(
-                        "Método '" + methodName + "' no se puede llamar sin su clase",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
-                return "ERROR";
-            }
-
             // 1. ¿Es función global?
             if (funcSym != null && funcSym.getKind() == Symbol.Kind.FUNCTION) {
                 int expectedArgs = funcSym.getParameterCount();
@@ -261,6 +240,25 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                 return funcSym.getType();
             }
 
+            // 2. ¿Es método de alguna clase?
+            boolean metodoDeClase = false;
+            for (Symbol s : semanticVisitor.getEntornoActual().getAllSymbols().values()) {
+                if (s.getKind() == Symbol.Kind.CLASS) {
+                    for (Symbol m : s.getMembers().values()) {
+                        if (m.getKind() == Symbol.Kind.FUNCTION && m.getName().equals(methodName)) {
+                            metodoDeClase = true;
+                        }
+                    }
+                }
+            }
+
+            if (metodoDeClase) {
+                semanticVisitor.agregarError(
+                        "Método '" + methodName + "' no se puede llamar sin su clase",
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
+                );
+                return "ERROR";
+            }
 
 
             // 3. ¿Es variable?

@@ -47,17 +47,40 @@ class AnalizadorController {
 
         // 4. Guardar errores y símbolos
         List<SemanticError> errores = visitor.getErrores();
-        List<Map<String, Object>> simbolos = visitor.getAllSymbols().values().stream()
-                .map(sym -> {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("name", sym.getName());
-                    map.put("type", sym.getType());
-                    map.put("kind", sym.getKind());
-                    map.put("line", sym.getLine());
-                    map.put("column", sym.getColumn());
-                    return map;
-                })
-                .toList();
+        Map<String, Map<String, Object>> simbolosPorScope = new HashMap<>();
+
+        visitor.getAllSymbols().values().forEach(sym -> {
+            String scopeName = sym.getScopeName() != null ? sym.getScopeName() : "global";
+
+            simbolosPorScope.putIfAbsent(scopeName, new HashMap<>());
+
+            Map<String, Object> scopeMap = simbolosPorScope.get(scopeName);
+            scopeMap.put(sym.getName(), Map.of(
+                    "type", sym.getType(),
+                    "kind", sym.getKind(),
+                    "line", sym.getLine(),
+                    "column", sym.getColumn()
+            ));
+
+            // Si es clase, podemos incluir sus miembros como submapa
+            if (sym.getKind() == Symbol.Kind.CLASS) {
+                sym.getMembers().values().forEach(member -> {
+                    scopeMap.put(member.getName(), Map.of(
+                            "type", member.getType(),
+                            "kind", member.getKind(),
+                            "line", member.getLine(),
+                            "column", member.getColumn()
+                    ));
+                });
+            }
+        });
+
+        System.out.println("===== TABLA DE SÍMBOLOS POR SCOPE =====");
+        simbolosPorScope.forEach((scope, symbols) -> {
+            System.out.println("Scope: " + scope);
+            symbols.forEach((name, info) -> System.out.println("  " + name + " -> " + info));
+        });
+        System.out.println("=======================================");
 
         // 5. Ejecutar script de Python para generar imagen del árbol
         String treeString = tree.toStringTree(parser);
