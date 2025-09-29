@@ -1,10 +1,12 @@
 package com.fmd;
+
 import com.fmd.modules.SemanticError;
 import com.fmd.modules.Symbol;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Set;
 
 import com.fmd.CompiscriptParser;
@@ -12,7 +14,6 @@ import com.fmd.CompiscriptBaseVisitor;
 
 public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     private final SemanticVisitor semanticVisitor;
-
 
     public VariableVisitor(SemanticVisitor semanticVisitor) {
         this.semanticVisitor = semanticVisitor;
@@ -103,7 +104,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             if (tipo == null) {
                 tipo = tipoInicializador;
             } else if (!tipo.equals(tipoInicializador) && !"desconocido".equals(tipoInicializador)) {
-                if (!(tipo.contains("[") && tipo.contains("]") && tipoInicializador.equals("array[]"))){
+                if (!(tipo.contains("[") && tipo.contains("]") && tipoInicializador.equals("array[]"))) {
                     semanticVisitor.agregarError(
                             "No se puede inicializar variable '" + nombre + "' de tipo '" + tipo +
                                     "' con expresión de tipo '" + tipoInicializador + "'",
@@ -112,7 +113,8 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             }
         }
 
-        if (tipo == null) tipo = "desconocido";
+        if (tipo == null)
+            tipo = "desconocido";
 
         Symbol sym = new Symbol(nombre, Symbol.Kind.VARIABLE, tipo, ctx,
                 ctx.start.getLine(), ctx.start.getCharPositionInLine(), true);
@@ -138,8 +140,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             if (claseSym == null || claseSym.getKind() != Symbol.Kind.CLASS) {
                 semanticVisitor.agregarError(
                         "Clase '" + claseNueva + "' no existe",
-                        newCtx.start.getLine(), newCtx.start.getCharPositionInLine()
-                );
+                        newCtx.start.getLine(), newCtx.start.getCharPositionInLine());
             } else {
                 // Buscar constructor
                 Symbol constructorSym = buscarConstructor(claseSym);
@@ -149,8 +150,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                     if (actualArgs > 0) {
                         semanticVisitor.agregarError(
                                 "Clase '" + claseNueva + "' no tiene constructor definido, no puede recibir argumentos",
-                                newCtx.start.getLine(), newCtx.start.getCharPositionInLine()
-                        );
+                                newCtx.start.getLine(), newCtx.start.getCharPositionInLine());
                     }
                 } else {
                     int expectedArgs = constructorSym.getParameterCount();
@@ -159,8 +159,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                         semanticVisitor.agregarError(
                                 "Constructor de '" + claseNueva + "' espera " + expectedArgs +
                                         " argumentos, pero recibe " + actualArgs,
-                                newCtx.start.getLine(), newCtx.start.getCharPositionInLine()
-                        );
+                                newCtx.start.getLine(), newCtx.start.getCharPositionInLine());
                     } else {
                         // Validar tipos de argumentos usando getParams()
                         List<Symbol> params = constructorSym.getParams();
@@ -175,8 +174,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                                                 "' esperado: '" + paramSym.getType() +
                                                 "', recibido: '" + tipoArg + "'",
                                         argExpr.start.getLine(),
-                                        argExpr.start.getCharPositionInLine()
-                                );
+                                        argExpr.start.getCharPositionInLine());
                             }
                         }
                     }
@@ -215,7 +213,6 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         return constructorSym;
     }
 
-
     @Override
     public String visitAssignment(CompiscriptParser.AssignmentContext ctx) {
         Symbol sym;
@@ -233,8 +230,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             if (currentClass == null) {
                 semanticVisitor.agregarError(
                         "Uso de 'this' fuera de una clase",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
             String memberName = nombreVar.substring(5);
@@ -242,8 +238,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             if (sym == null) {
                 semanticVisitor.agregarError(
                         "Miembro '" + memberName + "' no existe en la clase '" + currentClass.getName() + "'",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
         } else {
@@ -251,8 +246,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             if (sym == null) {
                 semanticVisitor.agregarError(
                         "Variable '" + nombreVar + "' no declarada",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
         }
@@ -261,20 +255,19 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         if (!sym.isMutable()) {
             semanticVisitor.agregarError(
                     "No se puede asignar a la constante '" + nombreVar + "'",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
         }
 
         // Obtener tipo de la expresión
-         String tipoExpr = semanticVisitor.getLogicalVisitor().visit(ctx.expression(0));
+        String tipoExpr = semanticVisitor.getLogicalVisitor().visit(ctx.expression(0));
 
         // Chequeo de tipos
         if (!sym.getType().equals(tipoExpr) && !"desconocido".equals(tipoExpr) && !"null".equals(tipoExpr)) {
 
             semanticVisitor.agregarError(
-                    "No se puede asignar valor de tipo '" + tipoExpr + "' a variable '" + nombreVar + "' de tipo '" + sym.getType() + "'",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
-            );
+                    "No se puede asignar valor de tipo '" + tipoExpr + "' a variable '" + nombreVar + "' de tipo '"
+                            + sym.getType() + "'",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
         }
 
         // Marcar miembro como inicializado
@@ -299,8 +292,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             semanticVisitor.agregarError(
                     "Variable '" + nombre + "' no declarada en este scope",
                     ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
@@ -309,15 +301,14 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                     "No se puede acceder al miembro '" + nombre + "' sin un objeto de tipo '"
                             + sym.getEnclosingClassName() + "'",
                     ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
         return sym.getType();
     }
 
-// Solo mostrando los métodos que cambian para operaciones aritméticas
+    // Solo mostrando los métodos que cambian para operaciones aritméticas
 
     /**
      * Maneja operaciones aditivas: + y -
@@ -353,18 +344,15 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                         semanticVisitor.agregarError(
                                 "Concatenación de string e integer solo permitida dentro de print()",
                                 ctx.start.getLine(),
-                                ctx.start.getCharPositionInLine()
-                        );
+                                ctx.start.getCharPositionInLine());
                         tipoIzq = "desconocido";
                     }
-                }
-                else {
+                } else {
                     // Otros casos inválidos
                     semanticVisitor.agregarError(
                             SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
                             ctx.start.getLine(),
-                            ctx.start.getCharPositionInLine()
-                    );
+                            ctx.start.getCharPositionInLine());
                     tipoIzq = "desconocido";
                 }
 
@@ -374,8 +362,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                     semanticVisitor.agregarError(
                             SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
                             ctx.start.getLine(),
-                            ctx.start.getCharPositionInLine()
-                    );
+                            ctx.start.getCharPositionInLine());
                     tipoIzq = "desconocido";
                 } else {
                     tipoIzq = "integer";
@@ -385,7 +372,6 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
         return tipoIzq;
     }
-
 
     /**
      * Verifica si una operación es válida DENTRO de contextos de print
@@ -409,6 +395,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     private boolean esStringOInteger(String tipo) {
         return "string".equals(tipo) || "integer".equals(tipo);
     }
+
     /**
      * Maneja operaciones multiplicativas: *, / y %
      */
@@ -429,8 +416,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                 semanticVisitor.agregarError(
                         SemanticError.getDivisionByZeroMessage(),
                         ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getCharPositionInLine());
             }
 
             // Validar que ambos operandos sean integer usando mensaje centralizado
@@ -438,8 +424,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                 semanticVisitor.agregarError(
                         SemanticError.getArithmeticErrorMessage(operador, tipoIzq, tipoDer),
                         ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getCharPositionInLine());
                 tipoIzq = "desconocido";
             } else {
                 tipoIzq = "integer";
@@ -467,8 +452,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                 semanticVisitor.agregarError(
                         SemanticError.getUnaryArithmeticErrorMessage("-", tipoOperando),
                         ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getCharPositionInLine());
             }
             return "integer";
         } else if ("!".equals(operador)) {
@@ -477,8 +461,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                 semanticVisitor.agregarError(
                         SemanticError.getUnaryLogicalErrorMessage("!", tipoOperando),
                         ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getCharPositionInLine());
             }
             return "boolean";
         }
@@ -550,19 +533,22 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                         } else {
                             String[] partes_original = currentType.split("\\[");
 
-                            String posible_indice = ((CompiscriptParser.IndexExprContext) suffixOp).expression().getText();
+                            String posible_indice = ((CompiscriptParser.IndexExprContext) suffixOp).expression()
+                                    .getText();
                             try {
                                 int indice = Integer.parseInt(posible_indice);
 
-                                if(partes_original[1].split("]").length>0){ // si el array tiene tamaño establecido
+                                if (partes_original[1].split("]").length > 0) { // si el array tiene tamaño establecido
                                     int array_size = Integer.parseInt(partes_original[1].split("]")[0]);
 
                                     if (!(indice < array_size - 1)) {
-                                        semanticVisitor.agregarError("Indice incorrecto" + indice + "para el array de tamaño " + array_size,
+                                        semanticVisitor.agregarError(
+                                                "Indice incorrecto" + indice + "para el array de tamaño " + array_size,
                                                 suffixOp.start.getLine(), suffixOp.start.getCharPositionInLine());
                                     }
                                 }
-                            } catch (NumberFormatException ignored) {}
+                            } catch (NumberFormatException ignored) {
+                            }
 
                             currentType = partes_original[0];
                         }
@@ -577,8 +563,8 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                     }
 
                 } else if (suffixOp instanceof CompiscriptParser.PropertyAccessExprContext) {
-                    if (i+1 < ctx.suffixOp().size()) { // Verificar si se accede a un metodo
-                        CompiscriptParser.SuffixOpContext nextSuffixOp = ctx.suffixOp().get(i+1);
+                    if (i + 1 < ctx.suffixOp().size()) { // Verificar si se accede a un metodo
+                        CompiscriptParser.SuffixOpContext nextSuffixOp = ctx.suffixOp().get(i + 1);
                         if (nextSuffixOp instanceof CompiscriptParser.CallExprContext) {
                             // Es una llamada a función
                             CompiscriptParser.CallExprContext callCtx = (CompiscriptParser.CallExprContext) nextSuffixOp;
@@ -615,7 +601,10 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
         } else if (ctx instanceof CompiscriptParser.ThisExprContext) {
             // Es 'this' - depende del contexto de clase actual
-            return "this"; // O el tipo de la clase actual si estás dentro de una
+            // Retorna el tipo de la clase actual si estás dentro de una
+            // Retorna 'this' como marcador de un error
+            String currentClass = semanticVisitor.getCurrentClass().getName();
+            return Objects.requireNonNullElse(currentClass, "this");
         }
 
         return "String"; // Fallback
@@ -630,8 +619,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             semanticVisitor.agregarError(
                     "Clase '" + className + "' no existe",
                     ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getCharPositionInLine());
             return "desconocido";
         }
         return className;
@@ -652,8 +640,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
                 semanticVisitor.agregarError(
                         "Tipo '" + leftTipo + "' no es una clase válida",
                         ctx.start.getLine(),
-                        ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getCharPositionInLine());
                 return null;
             }
         }
@@ -662,8 +649,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             semanticVisitor.agregarError(
                     "No se encontró una clase válida",
                     ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getCharPositionInLine());
             return null;
         }
 
@@ -686,13 +672,12 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
 
         if (propSym == null) {
             semanticVisitor.agregarError(
-                    "La propiedad '" + propName + "' no existe en la clase '" + classSym.getName() + "' ni en sus superclases",
+                    "La propiedad '" + propName + "' no existe en la clase '" + classSym.getName()
+                            + "' ni en sus superclases",
                     ctx.start.getLine(),
-                    ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getCharPositionInLine());
             return "desconocido";
         }
-
 
         semanticVisitor.setLastSymbol(propSym);
 
@@ -704,7 +689,6 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
     public String visitExprNoAssign(CompiscriptParser.ExprNoAssignContext ctx) {
         return semanticVisitor.getLogicalVisitor().visit(ctx.conditionalExpr());
     }
-
 
     @Override
     public String visitTernaryExpr(CompiscriptParser.TernaryExprContext ctx) {
@@ -730,7 +714,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         String rhs_type = visit(ctx.assignmentExpr());
 
         if (!lhs_type.equals(rhs_type)) {
-            if (!(ctx.lhs.getText().contains("[") && rhs_type.equals("array[]"))){
+            if (!(ctx.lhs.getText().contains("[") && rhs_type.equals("array[]"))) {
                 semanticVisitor.agregarError(
                         "No se puede inicializar variable '" + ctx.lhs.getText() + "' de tipo '" + lhs_type +
                                 "' con expresión de tipo '" + rhs_type + "'",
@@ -751,16 +735,14 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         if (baseSym == null) {
             semanticVisitor.agregarError(
                     "Objeto '" + baseName + "' no declarado",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
         if (baseSym.getKind() != Symbol.Kind.VARIABLE) {
             semanticVisitor.agregarError(
                     "'" + baseName + "' no es un objeto",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
@@ -770,8 +752,7 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         if (classSym == null || classSym.getKind() != Symbol.Kind.CLASS) {
             semanticVisitor.agregarError(
                     "Clase '" + classType + "' no existe",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
@@ -779,20 +760,21 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         if (memberSym == null) {
             semanticVisitor.agregarError(
                     "Miembro '" + memberName + "' no existe en la clase '" + classType + "'",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
-        // Derecha: evaluar expresión sin llamar a visitPropertyAssignExpr recursivamente
-        String rightType = visit(ctx.assignmentExpr()); // esto está bien mientras ctx.assignmentExpr() no sea otro PropertyAssignExpr anidado directamente
+        // Derecha: evaluar expresión sin llamar a visitPropertyAssignExpr
+        // recursivamente
+        String rightType = visit(ctx.assignmentExpr()); // esto está bien mientras ctx.assignmentExpr() no sea otro
+                                                        // PropertyAssignExpr anidado directamente
 
         // Validar tipos
         if (!memberSym.getType().equals(rightType) && !"desconocido".equals(rightType)) {
             semanticVisitor.agregarError(
-                    "Tipo de '" + memberName + "' (" + memberSym.getType() + ") no coincide con expresión (" + rightType + ")",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
-            );
+                    "Tipo de '" + memberName + "' (" + memberSym.getType() + ") no coincide con expresión (" + rightType
+                            + ")",
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
         } else {
             memberSym.setInitialized(true);
         }

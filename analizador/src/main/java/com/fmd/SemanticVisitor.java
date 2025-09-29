@@ -11,17 +11,19 @@ import com.fmd.modules.SemanticError;
 import com.fmd.modules.Symbol;
 import org.antlr.v4.runtime.tree.ParseTree;
 
+import com.fmd.CompiscriptLexer;
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseVisitor;
+
 public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     private final List<SemanticError> errores = new ArrayList<>();
 
     private Entorno entornoActual;
     private final Entorno raiz;
     private Symbol lastSymbol;
-    private Symbol currentClass;
     private boolean dentroDeContextoPrint = false;
     private int loopDepth = 0;
     private int switchDepth = 0;
-
 
     private final VariableVisitor variableVisitor = new VariableVisitor(this);
     private final FunctionsVisitor functionsVisitor = new FunctionsVisitor(this);
@@ -110,6 +112,29 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
                 hijo.imprimirScopes(prefijo + "    "); // recursión con sangría
             }
         }
+
+        /**
+         * Devuelve un mapa con todos los símbolos accesibles desde este scope:
+         * incluye los símbolos de los ancestros (root -> ... -> this) y
+         * además los de todos los hijos de forma recursiva.
+         */
+        public Map<String, Symbol> getAllScopesSymbols() {
+            LinkedHashMap<String, Symbol> result = new LinkedHashMap<>();
+
+            // 1. Ancestros: root → ... → this
+            if (padre != null) {
+                result.putAll(padre.getAllSymbols());
+            }
+            result.putAll(this.symbols);
+
+            // 2. Hijos: recursivamente
+            for (Entorno hijo : hijos) {
+                result.putAll(hijo.getAllScopesSymbols());
+            }
+
+            return result;
+        }
+
     }
 
 
@@ -540,11 +565,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
     }
 
     public Symbol getCurrentClass() {
-        return currentClass;
-    }
-
-    public void setCurrentClass(Symbol cls) {
-        this.currentClass = cls;
+        return classesListener.getCurrentClass();
     }
 
     public String getExpressionType(CompiscriptParser.ExpressionContext ctx) {

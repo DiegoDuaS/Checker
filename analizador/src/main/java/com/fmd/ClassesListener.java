@@ -14,6 +14,10 @@ public class ClassesListener extends CompiscriptBaseListener {
         this.semanticVisitor = visitor;
     }
 
+    public Symbol getCurrentClass() {
+        return currentClass;
+    }
+
     @Override
     public void enterClassDeclaration(CompiscriptParser.ClassDeclarationContext ctx) {
         String className = ctx.Identifier(0).getText();
@@ -115,8 +119,6 @@ public class ClassesListener extends CompiscriptBaseListener {
             semanticVisitor.getEntornoActual().agregar(varSym);
 
     }
-
-
 
 
     @Override
