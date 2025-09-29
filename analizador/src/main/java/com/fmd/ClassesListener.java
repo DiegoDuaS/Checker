@@ -121,11 +121,14 @@ public class ClassesListener extends CompiscriptBaseListener {
 
     @Override
     public void enterFunctionDeclaration(CompiscriptParser.FunctionDeclarationContext ctx) {
-        semanticVisitor.entrarScope();
         String funcName = ctx.Identifier().getText();
         boolean hayError = false;
 
         boolean isConstructor = currentClass != null && funcName.equals("constructor");
+
+        if (!isConstructor){
+            semanticVisitor.getFunctionsVisitor().visit(ctx);
+        }
 
         // Tipo de retorno
         String returnType = ctx.type() != null ? ctx.type().getText() : "desconocido";
@@ -154,6 +157,7 @@ public class ClassesListener extends CompiscriptBaseListener {
 
         // 🔹 Paso 2: Recorrer cuerpo del constructor
         if (isConstructor && !hayError) {
+            semanticVisitor.entrarScope();
             for (CompiscriptParser.StatementContext stmt : ctx.block().statement()) {
                 if (stmt.assignment() != null) {
                     CompiscriptParser.AssignmentContext assignCtx = stmt.assignment();
@@ -241,6 +245,7 @@ public class ClassesListener extends CompiscriptBaseListener {
                     );
                 }
             }
+            semanticVisitor.salirScope();
         }
 
         if (!isConstructor || (isConstructor && !hayError)) {
@@ -325,7 +330,7 @@ public class ClassesListener extends CompiscriptBaseListener {
         }
 
         semanticVisitor.getEntornoActual().agregar(constSym);
-        semanticVisitor.salirScope();
+        // ESTO TENIA UN SALIR SCOPE, REVISAR SU UTILIDAD
     }
 
 

@@ -7,6 +7,7 @@ import java.util.Set;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import com.fmd.modules.Symbol;
+import com.fmd.CompiscriptLexer;
 import com.fmd.CompiscriptParser;
 import com.fmd.CompiscriptBaseVisitor;
 
@@ -44,8 +45,6 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         semanticVisitor.getEntornoActual().agregar(function);
         System.out.println("Función agregada al scope actual: " + functionName);
 
-        semanticVisitor.entrarScope();
-        System.out.println("SE ENTRO A NUEVO SCOPE para función: " + functionName);
         Symbol previousFunction = currentFunction;
         currentFunction = function;
 
@@ -79,8 +78,6 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         semanticVisitor.visit(ctx.block());
 
         currentFunction = previousFunction;
-        semanticVisitor.salirScope();
-        System.out.println("SE SALIO DEL SCOPE de la función: " + functionName);
 
         return tipo;
     }
