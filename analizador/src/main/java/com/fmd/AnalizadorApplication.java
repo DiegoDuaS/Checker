@@ -17,6 +17,10 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.fmd.CompiscriptLexer;
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseVisitor;
+
 @SpringBootApplication
 public class AnalizadorApplication {
     public static void main(String[] args) {
@@ -51,7 +55,7 @@ class AnalizadorController {
 
         // 4. Guardar errores y símbolos
         List<SemanticError> errores = visitor.getErrores();
-        List<Map<String, Object>> simbolos = visitor.getAllSymbols().values().stream()
+        List<Map<String, Object>> simbolos = visitor.getRaiz().getAllScopesSymbols().values().stream()
                 .map(sym -> {
                     Map<String, Object> map = new HashMap<>();
                     map.put("name", sym.getName());
@@ -77,7 +81,7 @@ class AnalizadorController {
     public static String generarImagen(String treeString) {
         try {
             // Ejecuta un script Python que recibe el árbol y devuelve Base64
-            ProcessBuilder pb = new ProcessBuilder("python", "analizador\\additions\\AstTreeGenerator.py");
+            ProcessBuilder pb = new ProcessBuilder("python", "additions\\AstTreeGenerator.py");
             Process p = pb.start();
 
             // Mandar el árbol al script

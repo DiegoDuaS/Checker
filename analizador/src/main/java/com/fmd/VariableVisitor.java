@@ -603,8 +603,12 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
             // Es 'this' - depende del contexto de clase actual
             // Retorna el tipo de la clase actual si estás dentro de una
             // Retorna 'this' como marcador de un error
-            String currentClass = semanticVisitor.getCurrentClass().getName();
-            return Objects.requireNonNullElse(currentClass, "this");
+            Symbol currentClass = semanticVisitor.getCurrentClass();
+            if (currentClass != null){
+                return currentClass.getName();
+            }
+
+            return "this";
         }
 
         return "String"; // Fallback

@@ -23,10 +23,8 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
     @Override
     public String visitFunctionDeclaration(CompiscriptParser.FunctionDeclarationContext ctx) {
         String functionName = ctx.Identifier().getText();
-        System.out.println("Entrando a función: " + functionName);
 
         if (semanticVisitor.getEntornoActual().existeLocal(functionName)) {
-            System.out.println("⚠ Función duplicada: " + functionName);
             semanticVisitor.agregarError("Función '" + functionName + "' ya fue declarada en este ámbito",
                     ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
@@ -37,13 +35,11 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                 ctx.start.getLine(), ctx.start.getCharPositionInLine(), false);
 
         if (currentFunction != null) {
-            System.out.println("Función anidada detectada dentro de: " + currentFunction.getName());
             function.setEnclosingFunctionName(currentFunction.getName());
             function.setNested(true);
         }
 
         semanticVisitor.getEntornoActual().agregar(function);
-        System.out.println("Función agregada al scope actual: " + functionName);
 
         Symbol previousFunction = currentFunction;
         currentFunction = function;
@@ -53,7 +49,6 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                 String paramName = param.Identifier().getText();
                 String paramType = param.type() != null ? getTypeFromContext(param.type()) : "OBJECT";
 
-                System.out.println("Parametro agregado: " + paramName + " de tipo " + paramType);
                 Symbol newParameter = new Symbol(paramName, Symbol.Kind.VARIABLE, paramType, param,
                         param.start.getLine(), param.start.getCharPositionInLine(), false);
                 function.addParameter(newParameter);
@@ -64,11 +59,9 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         if (function.isNested()) {
             Set<String> capturedVars = findCapturedVariables(ctx.block());
             function.setCapturedVariables(capturedVars);
-            System.out.println("Variables capturadas en función: " + capturedVars);
 
             for (String varName : capturedVars) {
                 if (!semanticVisitor.getEntornoActual().getPadre().existeGlobal(varName)) {
-                    System.out.println("⚠ Variable capturada no encontrada en scope externo: " + varName);
                     semanticVisitor.agregarError("Variable capturada '" + varName +
                             "' no existe en ámbitos externos", ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 }

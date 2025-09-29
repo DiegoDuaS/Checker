@@ -1,6 +1,10 @@
 package com.fmd;
 import com.fmd.modules.SemanticError;
 
+import com.fmd.CompiscriptLexer;
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseVisitor;
+
 public class ComparisonVisitor extends CompiscriptBaseVisitor<String> {
     private final SemanticVisitor semanticVisitor;
 

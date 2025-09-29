@@ -11,6 +11,9 @@ import org.junit.jupiter.api.DisplayName;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import com.fmd.CompiscriptLexer;
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseVisitor;
 
 @DisplayName("Tests para Operaciones de Comparación")
 public class ComparisonVisitorTest {
@@ -395,8 +398,8 @@ public class ComparisonVisitorTest {
 
         // Ahora probamos expresiones inválidas por separado
         String invalidCode1 = """
-            let num1: integer = 10;
-            let text1: string = "hello";
+            let numA: integer = 10;
+            let textA: string = "hello";
             let invalid: boolean = num1 == text1;
             """;
 

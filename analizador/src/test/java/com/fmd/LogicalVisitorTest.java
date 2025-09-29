@@ -11,6 +11,9 @@ import org.junit.jupiter.api.DisplayName;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import com.fmd.CompiscriptLexer;
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseVisitor;
 
 @DisplayName("Tests para Operaciones Lógicas")
 public class LogicalVisitorTest {

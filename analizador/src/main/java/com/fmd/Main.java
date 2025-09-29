@@ -9,6 +9,9 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import com.fmd.modules.SemanticError;
+import com.fmd.CompiscriptLexer;
+import com.fmd.CompiscriptParser;
+import com.fmd.CompiscriptBaseVisitor;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -45,9 +48,6 @@ public class Main {
 
         // 8. Mostrar tabla de simbolos
         System.out.println("\n Esta es la tabla de símbolos:");
-        for (String sym : visitor.getAllSymbols().keySet()) {
-            Symbol info = visitor.getAllSymbols().get(sym);
-            System.out.println(sym + ": " + info.getType() );
-        }
+        visitor.getRaiz().imprimirScopes("");
     }
 }
