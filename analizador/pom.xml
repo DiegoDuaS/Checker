@@ -16,8 +16,6 @@
   <version>1.0-SNAPSHOT</version>
 
   <name>analizador</name>
-  <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -92,6 +90,11 @@
       </plugins>
     </pluginManagement>
     <plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>3.0.2</version>
+        </plugin>
       <!-- ANTLR for project-->
         <plugin>
           <groupId>org.antlr</groupId>
@@ -138,11 +141,6 @@
           <configuration>
               <mainClass>com.fmd.Main</mainClass>
           </configuration>
-        </plugin>
-        <!-- Para el API -->
-        <plugin>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-maven-plugin</artifactId>
         </plugin>
     </plugins>
   </build>
