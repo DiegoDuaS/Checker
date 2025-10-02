@@ -11,7 +11,7 @@ import com.fmd.CompiscriptLexer;
 import com.fmd.CompiscriptParser;
 import com.fmd.CompiscriptBaseVisitor;
 
-public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
+public class FunctionsVisitor extends CompiscriptBaseVisitor<Object> {
     private final SemanticVisitor semanticVisitor;
     private Symbol currentFunction;
 
@@ -21,13 +21,13 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
 
     // Funciones recursivas y Detección de múltiples declaraciones
     @Override
-    public String visitFunctionDeclaration(CompiscriptParser.FunctionDeclarationContext ctx) {
+    public Symbol visitFunctionDeclaration(CompiscriptParser.FunctionDeclarationContext ctx) {
         String functionName = ctx.Identifier().getText();
 
         if (semanticVisitor.getEntornoActual().existeLocal(functionName)) {
             semanticVisitor.agregarError("Función '" + functionName + "' ya fue declarada en este ámbito",
                     ctx.start.getLine(), ctx.start.getCharPositionInLine());
-            return "ERROR";
+            return null;
         }
 
         String tipo = ctx.type() != null ? ctx.type().getText() : "void";
@@ -43,6 +43,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
 
         Symbol previousFunction = currentFunction;
         currentFunction = function;
+        semanticVisitor.entrarScope();
 
         if (ctx.parameters() != null) {
             for (CompiscriptParser.ParameterContext param : ctx.parameters().parameter()) {
@@ -68,13 +69,14 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             }
         }
 
-        semanticVisitor.visit(ctx.block());
+        visitBlock(ctx.block());
+        function.setMembers(semanticVisitor.getEntornoActual().getSymbolsLocal());
 
         currentFunction = previousFunction;
+        semanticVisitor.salirScope();
 
-        return tipo;
+        return function;
     }
-
 
     // Validación de tipo de retorno
     @Override
@@ -89,7 +91,8 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         String actualReturnType;
 
         if (ctx.expression() != null) {
-            actualReturnType = semanticVisitor.getVariableVisitor().visit(ctx.expression()); // Obtener tipo de la expresión
+            actualReturnType = semanticVisitor.getVariableVisitor().visit(ctx.expression()); // Obtener tipo de la
+                                                                                             // expresión
         } else {
             actualReturnType = "void";
         }
@@ -110,8 +113,8 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
     public String visitCallExpr(CompiscriptParser.CallExprContext ctx) {
         // Obtener base y método
         String[] parts = getFunctionParts(ctx);
-        String baseName = parts[0];    // null o "unknown" si no hay objeto
-        String methodName = parts[1];  // nombre de la función o método
+        String baseName = parts[0]; // null o "unknown" si no hay objeto
+        String methodName = parts[1]; // nombre de la función o método
 
         // ============================
         // CASO 1: objeto.funcion()
@@ -122,17 +125,14 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             if (baseSym == null) {
                 semanticVisitor.agregarError(
                         "Variable u objeto '" + baseName + "' no declarado",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
-
 
             if (baseSym.getKind() != Symbol.Kind.VARIABLE) {
                 semanticVisitor.agregarError(
                         "'" + baseName + "' no es un objeto para llamar métodos",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
 
@@ -140,12 +140,10 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             String classType = baseSym.getType();
             Symbol classSym = semanticVisitor.getEntornoActual().obtener(classType);
 
-
             if (classSym == null || classSym.getKind() != Symbol.Kind.CLASS) {
                 semanticVisitor.agregarError(
                         "Clase '" + classType + "' no existe",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
 
@@ -157,7 +155,6 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                         .filter(m -> m.getName().equals(methodName) && m.getKind() == Symbol.Kind.FUNCTION)
                         .findFirst().orElse(null);
 
-
                 if (methodSym == null && currentClassSym.getSuperClass() != null) {
                     currentClassSym = semanticVisitor.getEntornoActual().obtener(currentClassSym.getSuperClass());
                 } else {
@@ -168,8 +165,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             if (methodSym == null) {
                 semanticVisitor.agregarError(
                         "Método '" + methodName + "' no existe en la clase '" + classType + "' ni en sus superclases",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
 
@@ -177,13 +173,11 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             int expectedArgs = methodSym.getParameterCount();
             int actualArgs = ctx.arguments() != null ? ctx.arguments().expression().size() : 0;
 
-
             if (expectedArgs != actualArgs) {
                 semanticVisitor.agregarError(
                         "Método '" + methodName + "' espera " + expectedArgs +
                                 " argumentos, pero recibe " + actualArgs,
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
 
@@ -205,8 +199,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                     semanticVisitor.agregarError(
                             "Función '" + funcSym.getName() + "' espera " + expectedArgs +
                                     " argumentos, pero recibe " + actualArgs,
-                            ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                    );
+                            ctx.start.getLine(), ctx.start.getCharPositionInLine());
                     return "ERROR";
                 }
 
@@ -220,7 +213,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
 
                         if (!typesCompatible(actualType, expectedType)) {
                             semanticVisitor.agregarError("Argumento " + (i + 1) + " en función '" +
-                                            funcSym.getName() + "': esperado " + expectedType + ", encontrado " + actualType,
+                                    funcSym.getName() + "': esperado " + expectedType + ", encontrado " + actualType,
                                     ctx.start.getLine(), ctx.start.getCharPositionInLine());
                         }
                     }
@@ -244,30 +237,34 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
             if (metodoDeClase) {
                 semanticVisitor.agregarError(
                         "Método '" + methodName + "' no se puede llamar sin su clase",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
-
 
             // 3. ¿Es variable?
             if (funcSym != null && funcSym.getKind() == Symbol.Kind.VARIABLE) {
                 semanticVisitor.agregarError(
                         "La variable '" + methodName + "' no es una función",
-                        ctx.start.getLine(), ctx.start.getCharPositionInLine()
-                );
+                        ctx.start.getLine(), ctx.start.getCharPositionInLine());
                 return "ERROR";
             }
 
             // 4. Si no existe en ningún lado
             semanticVisitor.agregarError(
                     "Función o método '" + methodName + "' no está definido",
-                    ctx.start.getLine(), ctx.start.getCharPositionInLine()
-            );
+                    ctx.start.getLine(), ctx.start.getCharPositionInLine());
             return "ERROR";
         }
 
         return "ERROR";
+    }
+
+    @Override
+    public String visitBlock(CompiscriptParser.BlockContext ctx) {
+        for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
+            semanticVisitor.visit(stmt);
+        }
+        return null;
     }
 
     // Método auxiliar para compatibilidad de tipos
@@ -277,7 +274,6 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         }
         return actualType.equals(expectedType) || "ERROR".equals(actualType);
     }
-
 
     // Método auxiliar para obtener el nombre de la función
     // Método auxiliar para obtener base y nombre de función
@@ -290,7 +286,8 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                 CompiscriptParser.LeftHandSideContext lhs = (CompiscriptParser.LeftHandSideContext) parent;
 
                 if (lhs.primaryAtom() instanceof CompiscriptParser.IdentifierExprContext) {
-                    String baseName = ((CompiscriptParser.IdentifierExprContext) lhs.primaryAtom()).Identifier().getText();
+                    String baseName = ((CompiscriptParser.IdentifierExprContext) lhs.primaryAtom()).Identifier()
+                            .getText();
                     String methodName = null;
 
                     if (lhs.suffixOp() != null) {
@@ -305,21 +302,21 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
                         }
                     }
 
-                    // Si no hay suffix, significa que es una llamada directa a función global o de clase
+                    // Si no hay suffix, significa que es una llamada directa a función global o de
+                    // clase
                     if (methodName == null) {
                         methodName = baseName;
                         baseName = null;
                     }
 
-                    return new String[]{baseName, methodName};
+                    return new String[] { baseName, methodName };
                 }
             }
             parent = parent.getParent();
         }
 
-        return new String[]{null, "unknown"};
+        return new String[] { null, "unknown" };
     }
-
 
     // Método auxiliar para obtener tipo desde contexto
     private String getTypeFromContext(CompiscriptParser.TypeContext typeCtx) {
@@ -339,7 +336,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<String> {
         return result.toString();
     }
 
-    // Método para encontrar variables capturadas (closure)
+    // Metodo para encontrar variables capturadas (closure)
     private Set<String> findCapturedVariables(CompiscriptParser.BlockContext block) {
         VariableCaptureAnalyzer analyzer = new VariableCaptureAnalyzer();
         analyzer.visit(block);

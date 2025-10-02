@@ -15,7 +15,7 @@ import com.fmd.CompiscriptLexer;
 import com.fmd.CompiscriptParser;
 import com.fmd.CompiscriptBaseVisitor;
 
-public class SemanticVisitor extends CompiscriptBaseVisitor<Void> {
+public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
     private final List<SemanticError> errores = new ArrayList<>();
 
     private Entorno entornoActual;

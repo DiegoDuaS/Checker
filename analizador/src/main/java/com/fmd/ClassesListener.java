@@ -129,7 +129,8 @@ public class ClassesListener extends CompiscriptBaseListener {
         boolean isConstructor = currentClass != null && funcName.equals("constructor");
 
         if (!isConstructor){
-            semanticVisitor.getFunctionsVisitor().visit(ctx);
+            Symbol function = semanticVisitor.getFunctionsVisitor().visitFunctionDeclaration(ctx);
+            currentClass.getMembers().put(function.getName(), function);
         }
 
         // Tipo de retorno
@@ -247,15 +248,14 @@ public class ClassesListener extends CompiscriptBaseListener {
                     );
                 }
             }
-            semanticVisitor.salirScope();
-        }
 
-        if (!isConstructor || (isConstructor && !hayError)) {
+            funcSym.setMembers(semanticVisitor.getEntornoActual().getSymbolsLocal());
+            semanticVisitor.salirScope();
+
             if (currentClass != null) {
                 funcSym.setEnclosingClassName(currentClass.getName());
-                if (isConstructor) {
-                    funcSym.setConstructor(true);
-                }
+                funcSym.setConstructor(true);
+
                 currentClass.getMembers().put(funcName, funcSym);
             }
             semanticVisitor.getEntornoActual().agregar(funcSym);
