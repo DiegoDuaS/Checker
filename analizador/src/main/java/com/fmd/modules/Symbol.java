@@ -1,5 +1,6 @@
 package com.fmd.modules;
 
+import com.fmd.SemanticVisitor;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 import java.util.*;
@@ -19,12 +20,26 @@ public class Symbol {
     private boolean mutable; // para variables/constantes
     private boolean nested;
     private String EnclosingFunctionName;
+
     private Set<String> CapturedVariables = new HashSet<>();
     private String superClass;
     private String enclosingClassName;
     private Map<String, Symbol> members = new HashMap<>();
     private boolean initialized = false;
     private boolean constructor = false;
+
+    // PARA GENERACIÓN DE CÓDIGO INTERMEDIO
+    private String tacAddress;   // Nombre en TAC: variable, temporal o etiqueta
+    private int offset;          // Desplazamiento en el frame o en el objeto
+    private int size;            // Tamaño en bytes (sirve para calcular offsets)
+
+    // Para arrays/structs
+    private List<Integer> dimensions; // Si es array: [10], [10,20]...
+    private int elementSize;          // Tamaño de cada elemento
+
+    // Para funciones
+    private int paramCount;      // Cantidad de parámetros
+    private int localVarSize;    // Tamaño total de locales (para reservar stack)
 
     public Symbol(String name, Kind kind, String type, ParserRuleContext declNode, int line, int column,
             boolean mutable) {
@@ -126,6 +141,10 @@ public class Symbol {
         return members;
     }
 
+    public void setMembers(Map<String, Symbol> symbols) {
+        members = symbols;
+    }
+
     public void addMember(Symbol s) {
         members.put(s.getName(), s);
     }
@@ -141,6 +160,63 @@ public class Symbol {
     public void setConstructor(boolean value) {
         this.constructor = value;
     }
+
+    public String getTacAddress() {
+        return tacAddress;
+    }
+
+    public void setTacAddress(String tacAddress) {
+        this.tacAddress = tacAddress;
+    }
+
+    public int getOffset() {
+        return offset;
+    }
+
+    public void setOffset(int offset) {
+        this.offset = offset;
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public void setSize(int size) {
+        this.size = size;
+    }
+
+    public List<Integer> getDimensions() {
+        return dimensions;
+    }
+
+    public void setDimensions(List<Integer> dimensions) {
+        this.dimensions = dimensions;
+    }
+
+    public int getElementSize() {
+        return elementSize;
+    }
+
+    public void setElementSize(int elementSize) {
+        this.elementSize = elementSize;
+    }
+
+    public int getParamCount() {
+        return paramCount;
+    }
+
+    public void setParamCount(int paramCount) {
+        this.paramCount = paramCount;
+    }
+
+    public int getLocalVarSize() {
+        return localVarSize;
+    }
+
+    public void setLocalVarSize(int localVarSize) {
+        this.localVarSize = localVarSize;
+    }
+
 
     @Override
     public String toString() {
