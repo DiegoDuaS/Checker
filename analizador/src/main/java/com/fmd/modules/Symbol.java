@@ -217,9 +217,21 @@ public class Symbol {
         this.localVarSize = localVarSize;
     }
 
-
     @Override
     public String toString() {
         return kind + " " + name + ":" + type + " (line " + line + ":" + column + ")";
     }
+
+    public String toStringTAC() {
+        return kind +
+                " " +
+                name +
+                ":" +
+                type +
+                " [addr=" + (tacAddress != null ? tacAddress : "-") +
+                ", size=" + size +
+                ", offset=" + offset + "]" +
+                " (line " + line + ":" + column + ")";
+    }
+
 }
