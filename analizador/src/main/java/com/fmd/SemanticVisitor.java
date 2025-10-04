@@ -20,6 +20,8 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
 
     private Entorno entornoActual;
     private final Entorno raiz;
+    private final Map<String, Entorno> existingScopes = new HashMap<>();
+
     private Symbol lastSymbol;
     private boolean dentroDeContextoPrint = false;
     private int loopDepth = 0;
@@ -32,8 +34,9 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
     private final ComparisonVisitor comparisonVisitor = new ComparisonVisitor(this);
 
     public SemanticVisitor() {
-        this.entornoActual = new Entorno(null);
+        this.entornoActual = new Entorno(null, "0");
         this.raiz = this.entornoActual; // root/global
+        existingScopes.put("0", entornoActual);
     }
 
     public boolean isDentroDeContextoPrint() {
@@ -45,15 +48,20 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
     }
 
     public static class Entorno {
+        private String id;
         private final Map<String, Symbol> symbols = new HashMap<>();
         private final Entorno padre;
         private final List<Entorno> hijos = new ArrayList<>(); // <- hijos para scopes anidados
 
-        public Entorno(Entorno padre) {
+        public Entorno(Entorno padre, String id) {
+            this.id = id;
             this.padre = padre;
             if (padre != null) {
                 padre.agregarHijo(this); // agregar este entorno al padre
             }
+        }
+        public String getId() {
+            return id;
         }
 
         public Entorno getPadre() {
@@ -149,7 +157,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
     // General Statements
     @Override
     public Void visitBlock(CompiscriptParser.BlockContext ctx) {
-        entrarScope();
+        entrarScope(String.valueOf(ctx.start.getLine()));
         for (CompiscriptParser.StatementContext stmt : ctx.statement()) {
             visit(stmt);
         }
@@ -240,13 +248,13 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
     @Override
     public Void visitTryCatchStatement(CompiscriptParser.TryCatchStatementContext ctx) {
         // Abrir scope para el bloque try
-        entrarScope();
+        entrarScope(String.valueOf(ctx.start.getLine()));
         visit(ctx.block(0)); // Bloque try
         salirScope();
 
         // Si hay catch
         if (ctx.block().size() > 1) {
-            entrarScope();
+            entrarScope(String.valueOf(ctx.block(1).start.getLine()));
             // Declarar la variable de excepción en el scope del catch
             if (ctx.Identifier() != null) {
                 String exName = ctx.Identifier().getText();
@@ -271,7 +279,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
     @Override
     public Void visitForStatement(CompiscriptParser.ForStatementContext ctx) {
         loopDepth++;
-        entrarScope();
+        entrarScope(String.valueOf(ctx.start.getLine()));
 
         // Inicialización: puede ser declaración o asignación
         if (ctx.variableDeclaration() != null) {
@@ -308,7 +316,7 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
     @Override
     public Void visitForeachStatement(CompiscriptParser.ForeachStatementContext ctx) {
         loopDepth++;
-        entrarScope();
+        entrarScope(String.valueOf(ctx.start.getLine()));
 
         String iterName = ctx.Identifier().getText();
         String iterableType = variableVisitor.visit(ctx.expression()); // tipo del iterable
@@ -432,8 +440,9 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
     }
 
     // Manejo tabla de simbolos
-    public void entrarScope() {
-        entornoActual = new Entorno(entornoActual);
+    public void entrarScope(String id) {
+        entornoActual = new Entorno(entornoActual, id);
+        existingScopes.put(id, entornoActual);
     }
 
     public void salirScope() {
@@ -448,6 +457,10 @@ public class SemanticVisitor extends CompiscriptBaseVisitor<Object> {
 
     public Entorno getRaiz() {
         return raiz;
+    }
+
+    public Map<String, Entorno> getExistingScopes() {
+        return existingScopes;
     }
 
     // Exportar tabla como Map<String, Symbol>

@@ -43,7 +43,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<Object> {
 
         Symbol previousFunction = currentFunction;
         currentFunction = function;
-        semanticVisitor.entrarScope();
+        semanticVisitor.entrarScope(String.valueOf(ctx.start.getLine()));
 
         if (ctx.parameters() != null) {
             for (CompiscriptParser.ParameterContext param : ctx.parameters().parameter()) {

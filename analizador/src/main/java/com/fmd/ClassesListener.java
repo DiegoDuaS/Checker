@@ -38,7 +38,7 @@ public class ClassesListener extends CompiscriptBaseListener {
         }
 
         semanticVisitor.getEntornoActual().agregar(clase);
-        semanticVisitor.entrarScope();
+        semanticVisitor.entrarScope(String.valueOf(ctx.start.getLine()));
         currentClass = clase;
     }
 
@@ -160,7 +160,7 @@ public class ClassesListener extends CompiscriptBaseListener {
 
         // 🔹 Paso 2: Recorrer cuerpo del constructor
         if (isConstructor && !hayError) {
-            semanticVisitor.entrarScope();
+            semanticVisitor.entrarScope(String.valueOf(ctx.start.getLine()));
             for (CompiscriptParser.StatementContext stmt : ctx.block().statement()) {
                 if (stmt.assignment() != null) {
                     CompiscriptParser.AssignmentContext assignCtx = stmt.assignment();
