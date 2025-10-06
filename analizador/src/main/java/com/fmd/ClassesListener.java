@@ -44,6 +44,7 @@ public class ClassesListener extends CompiscriptBaseListener {
 
     @Override
     public void exitClassDeclaration(CompiscriptParser.ClassDeclarationContext ctx) {
+        currentClass.setMembers(semanticVisitor.getEntornoActual().getSymbolsLocal());
         semanticVisitor.salirScope();
         currentClass = null;
     }
@@ -332,7 +333,6 @@ public class ClassesListener extends CompiscriptBaseListener {
         }
 
         semanticVisitor.getEntornoActual().agregar(constSym);
-        // ESTO TENIA UN SALIR SCOPE, REVISAR SU UTILIDAD
     }
 
 

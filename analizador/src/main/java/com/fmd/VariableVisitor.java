@@ -122,9 +122,8 @@ public class VariableVisitor extends CompiscriptBaseVisitor<String> {
         // Agregar al entorno o como miembro de clase
         if (currentClass != null) {
             currentClass.addMember(sym);
-        } else {
-            semanticVisitor.getEntornoActual().agregar(sym);
         }
+        semanticVisitor.getEntornoActual().agregar(sym);
 
         return tipo;
     }
