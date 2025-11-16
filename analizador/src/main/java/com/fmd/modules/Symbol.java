@@ -217,6 +217,22 @@ public class Symbol {
         this.localVarSize = localVarSize;
     }
 
+    public boolean isGlobal() {
+        // Variable global = sin función y sin clase
+        return this.enclosingClassName == null && this.EnclosingFunctionName == null;
+    }
+
+    public boolean isLocal() {
+        // Variable local de función
+        return this.EnclosingFunctionName != null;
+    }
+
+    public boolean isField() {
+        // Parte de un objeto en heap
+        return this.enclosingClassName != null;
+    }
+
+
     @Override
     public String toString() {
         return kind + " " + name + ":" + type + " (line " + line + ":" + column + ")";
