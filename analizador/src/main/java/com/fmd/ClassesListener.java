@@ -44,6 +44,9 @@ public class ClassesListener extends CompiscriptBaseListener {
 
     @Override
     public void exitClassDeclaration(CompiscriptParser.ClassDeclarationContext ctx) {
+        for(Symbol sym: semanticVisitor.getEntornoActual().getSymbolsLocal().values()){
+            sym.setEnclosingClassName(currentClass.getName());
+        }
         currentClass.setMembers(semanticVisitor.getEntornoActual().getSymbolsLocal());
         semanticVisitor.salirScope();
         currentClass = null;
@@ -118,7 +121,6 @@ public class ClassesListener extends CompiscriptBaseListener {
 
         }
             semanticVisitor.getEntornoActual().agregar(varSym);
-
     }
 
 
@@ -132,6 +134,9 @@ public class ClassesListener extends CompiscriptBaseListener {
         if (!isConstructor){
             Symbol function = semanticVisitor.getFunctionsVisitor().visitFunctionDeclaration(ctx);
             currentClass.getMembers().put(function.getName(), function);
+
+            if (currentClass != null) function.setEnclosingClassName(currentClass.getName());
+
         }
 
         // Tipo de retorno
