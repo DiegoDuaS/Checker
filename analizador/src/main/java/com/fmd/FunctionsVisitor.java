@@ -326,7 +326,7 @@ public class FunctionsVisitor extends CompiscriptBaseVisitor<Object> {
         String baseType = typeCtx.baseType().getText();
 
         // Contar dimensiones del array
-        int arrayDimensions = typeCtx.getChildCount() - 1; // -1 porque el primer hijo es baseType
+        int arrayDimensions = (typeCtx.getChildCount() - 1) / 2; // -1 porque el primer hijo es baseType, /2 porque son dos []
 
         StringBuilder result = new StringBuilder(baseType);
         for (int i = 0; i < arrayDimensions; i++) {
